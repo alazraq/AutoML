@@ -91,11 +91,11 @@ class DataImputer(BaseEstimator, TransformerMixin):
     def transform(self, X, y=None):
         X = X.interpolate(method='linear').fillna(method='bfill')
         X.index = pd.to_datetime(X.index)
-        X['hour'] = X.index.map(lambda x: x.hour)
-        X['minute'] = X.index.map(lambda x: x.minute)
-        X['day'] = X.index.map(lambda x: x.day)
-        X['month'] = X.index.map(lambda x: x.month)
-        X['weekday'] = X.index.map(lambda x: x.weekday)
+#         X['hour'] = X.index.map(lambda x: x.hour)
+#         X['minute'] = X.index.map(lambda x: x.minute)
+#         X['day'] = X.index.map(lambda x: x.day)
+#         X['month'] = X.index.map(lambda x: x.month)
+#         X['weekday'] = X.index.map(lambda x: x.weekday)
         try:
             X.drop('Unnamed: 9', axis = 1, inplace = True)
         except KeyError as e:
@@ -245,29 +245,111 @@ class RNNModel():
             metrics=['mean_squared_error']
         )
         
-    def fit(self, X, y):
+    def fit(self, X, y, epochs = 2, batch_size = 60):
         di = DataImputer()
+        rdf = RNNDataFormatter()
         yi = YImputer()
-        x_trans = di.transform(X=x_train)
+        x_trans = rdf.transform(di.transform(X=x_train))
         y_trans = yi.transform(X=y_train)
-        self.model.fit(x_trans, y_trans)
-        
+        max_length = x_trans.shape[1]
+        for epoch in range(epochs):
+            mean_tr_acc = []
+            mean_tr_loss = []
+            for s in range(X_train.shpae[0]):                
+                for t in range(max_length):
+                    X_st = X[s][t]
+                    y_st = y[s][t]
+                    tr_loss, tr_acc = model.train_on_batch(X_st,y_st)
+                    mean_tr_acc.append(tr_acc)
+                    mean_tr_loss.append(tr_loss)
+                model.reset_states()
+            print('<loss (mse) training> {}'.format(np.mean(mean_tr_loss)))
 
-nb_columns_Y = y_train.shape[2]
-nb_columns_X = X_train.shape[2]
+print(x_train.shape[0]/60)
+
+model = RNNModel(x_train[1800, :].shape[0]/60, x_train.shape[1], y_train.shape[1])
+model.fit(x_train, y_train)
 ```
 
 ```python
-import zoo
-from zoo.common.nncontext import *
-from zoo.pipeline.api.keras.models import *
-from zoo.pipeline.api.keras.layers import *
+# import zoo
+# from zoo.common.nncontext import *
+# from zoo.pipeline.api.keras.models import *
+# from zoo.pipeline.api.keras.layers import *
 
-# Get the current Analytics Zoo version
-zoo.__version__
-# Create a SparkContext and initialize the BigDL engine.
-sc = init_nncontext()
-# Create a Sequential model containing a Dense layer.
-model = Sequential()
-model.add(Dense(8, input_shape=(10, )))
+# # Get the current Analytics Zoo version
+# zoo.__version__
+# # Create a SparkContext and initialize the BigDL engine.
+# sc = init_nncontext()
+# # Create a Sequential model containing a Dense layer.
+# model = Sequential()
+# model.add(Dense(8, input_shape=(10, )))
+```
+
+```python
+import numpy as np
+def random_sample(len_timeseries=3000):
+    Nchoice = 600
+    x1 = np.cos(np.arange(0,len_timeseries)/float(1.0 + np.random.choice(Nchoice)))
+    x2 = np.cos(np.arange(0,len_timeseries)/float(1.0 + np.random.choice(Nchoice)))
+    x3 = np.sin(np.arange(0,len_timeseries)/float(1.0 + np.random.choice(Nchoice)))
+    x4 = np.sin(np.arange(0,len_timeseries)/float(1.0 + np.random.choice(Nchoice)))
+    y1 = np.random.random(len_timeseries)
+    y2 = np.random.random(len_timeseries)
+    y3 = np.random.random(len_timeseries)
+    for t in range(3,len_timeseries):
+        ## the output time series depend on input as follows: 
+        y1[t] = x1[t-2] 
+        y2[t] = x2[t-1]*x3[t-2]
+        y3[t] = x4[t-3]
+    y = np.array([y1,y2,y3]).T
+    X = np.array([x1,x2,x3,x4]).T
+    return y, X
+def generate_data(Nsequence = 1000):
+    X_train = []
+    y_train = []
+    for isequence in range(Nsequence):
+        y, X = random_sample(10)
+        X_train.append(X)
+        y_train.append(y)
+    return np.array(X_train),np.array(y_train)
+
+X, y = generate_data(2)
+X
+```
+
+```python
+class RNNDataFormatter(BaseEstimator, TransformerMixin):
+    
+    def __init__(self):
+        pass
+    
+    def fit(self, X, y=None):
+        return X
+    
+    def transform(self, X, y=None):
+        print(X.shape)
+        nb_col = X.shape[1]
+        print(nb_col)
+        X_rnn = X[X.columns[:nb_col]].iloc[0:18000]
+        X_rnn = X_rnn.values.reshape((3, 6000, nb_col))
+        X_rnn[0, :, :]
+        return X_rnn
+```
+
+```python
+p = Pipeline([
+    (
+        '1',
+        DataImputer()
+    ),
+    (
+        '2',
+        RNNDataFormatter()
+    )
+])
+```
+
+```python
+p.transform(x_train)[0, 0, :]
 ```
