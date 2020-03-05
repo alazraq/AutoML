@@ -225,13 +225,14 @@ print('This is a test for jupyText, this should work,and if I add some content l
 ```
 
 ```python
+from keras.layers import Dropout, Activation
 class RNNModel():
     def __init__(self, hidden_neurons, nb_columns_X, nb_columns_Y):
         self.model = Sequential()
         self.model.add(
             LSTM(
                 hidden_neurons, 
-                batch_input_shape=(1, 1, nb_columns_X), 
+                batch_input_shape=(1, 60, nb_columns_X-1),  # TO DO: change
                 return_sequences=False,
                 stateful=True
             )
@@ -243,31 +244,38 @@ class RNNModel():
             loss='mean_squared_error', 
             optimizer="rmsprop",
             metrics=['mean_squared_error']
-        )
-        
+        )    
     def fit(self, X, y, epochs = 2, batch_size = 60):
         di = DataImputer()
         rdf = RNNDataFormatter()
         yi = YImputer()
         x_trans = rdf.transform(di.transform(X=x_train))
+        X = x_trans
         y_trans = yi.transform(X=y_train)
+        y = rdf.transform(y_trans)
         max_length = x_trans.shape[1]
         for epoch in range(epochs):
             mean_tr_acc = []
             mean_tr_loss = []
-            for s in range(X_train.shpae[0]):                
+            for s in range(X.shape[0]): 
+                X_st = X[s,:,:]
+                y_st = y[s,:,:]
+                print('gg')
+                X_st.reshape(1,60,8)
+                print(X_st.shape)
+                tr_loss, tr_acc = self.model.train_on_batch([X_st],y_st)
+                '''
                 for t in range(max_length):
                     X_st = X[s][t]
                     y_st = y[s][t]
-                    tr_loss, tr_acc = model.train_on_batch(X_st,y_st)
-                    mean_tr_acc.append(tr_acc)
-                    mean_tr_loss.append(tr_loss)
-                model.reset_states()
+                    tr_loss, tr_acc = self.model.train_on_batch(X_st,y_st)
+                    '''
+                mean_tr_acc.append(tr_acc)
+                mean_tr_loss.append(tr_loss)
+            model.reset_states()
             print('<loss (mse) training> {}'.format(np.mean(mean_tr_loss)))
 
-print(x_train.shape[0]/60)
-
-model = RNNModel(x_train[1800, :].shape[0]/60, x_train.shape[1], y_train.shape[1])
+model = RNNModel(8, x_train.shape[1], y_train.shape[1])
 model.fit(x_train, y_train)
 ```
 
@@ -332,7 +340,7 @@ class RNNDataFormatter(BaseEstimator, TransformerMixin):
         nb_col = X.shape[1]
         print(nb_col)
         X_rnn = X[X.columns[:nb_col]].iloc[0:18000]
-        X_rnn = X_rnn.values.reshape((3, 6000, nb_col))
+        X_rnn = X_rnn.values.reshape((int(X_rnn.shape[0]/60), 60, nb_col))
         X_rnn[0, :, :]
         return X_rnn
 ```
