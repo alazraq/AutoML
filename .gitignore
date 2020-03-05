@@ -139,3 +139,4 @@ dmypy.json
 # MAC
 
 .DS_Store
+test.ipynb
