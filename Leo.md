@@ -6,7 +6,7 @@ jupyter:
       extension: .md
       format_name: markdown
       format_version: '1.2'
-      jupytext_version: 1.3.3
+      jupytext_version: 1.3.4
   kernelspec:
     display_name: .venv
     language: python
@@ -33,7 +33,7 @@ from keras.models import Sequential
 
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.metrics import mean_squared_error
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.linear_model import LinearRegression
@@ -51,22 +51,10 @@ Y_train = pd.read_csv(
 )
 ```
 
-## Exploring Data
+## Data Exploration
 
 ```python
 X_train.head()
-```
-
-```python
-X_train.drop("Unnamed: 9", axis=1, inplace=True)
-X_test.drop("Unnamed: 9", axis=1, inplace=True)
-```
-
-```python
-# train_index = pd.to_datetime(X_train.index)
-# X_train.index = train_index
-# Y_train.index = train_index
-# X_test.index = pd.to_datetime(X_test.index)
 ```
 
 ### Dealing with NaN
@@ -87,8 +75,12 @@ class DataImputer(BaseEstimator, TransformerMixin):
         return X
     
     def transform(self, X, y=None):
+        try:
+            X.drop('Unnamed: 9', axis = 1, inplace = True)
+        except KeyError as e:
+            pass
         X = X.interpolate(method='linear').fillna(method='bfill')
-#         X.index = pd.to_datetime(X.index)
+        X.time_step = pd.to_datetime(X.time_step)
         return X
 ```
 
@@ -145,40 +137,19 @@ print(c)
 
 Adding extra features:
 
+
+Do we also want to add day of the month?
+
 ```python
 X_train["weekday"] = X_train.time_step.dt.dayofweek
-X_train["week"] = X_train.time_step.dt.week
 X_train["month"] = X_train.time_step.dt.month
 X_train["hour"] = X_train.time_step.dt.hour
-X_train["is_weekend"] = np.zeros(X_train.shape[0])  
-X_train.loc[X_train["weekday"] > 4, "is_weekend"] = 1
-X_train["is_holidays"] = np.zeros(X_train.shape[0])  
-X_train.loc[X_train.time_step.dt.date.isin(fr_holidays), "is_holidays"] = 1
+X_train["is_weekend"] = (X_train["weekday"] > 4)*1  
+X_train["is_holidays"] = (X_train.time_step.dt.date.isin(fr_holidays))*1
 ```
 
-Let's put all in a transformer!
+### Visualizing the Data
 
-```python
-class DataAugmenter(BaseEstimator, TransformerMixin):
-    
-    def __init__(self):
-        self.X = None
-    
-    def fit(self, X, y=None):
-        return X
-    
-    def transform(self, X, y=None):
-        X["time_step"] = pd.to_datetime(X["time_step"])
-        X["weekday"] = X.time_step.dt.dayofweek
-        X["week"] = X.time_step.dt.week
-        X["month"] = X.time_step.dt.month
-        X["hour"] = X.time_step.dt.hour
-        X["is_weekend"] = np.zeros(X.shape[0])  
-        X.loc[X["weekday"] > 4, "is_weekend"] = 1
-        X["is_holidays"] = np.zeros(X.shape[0])  
-        X.loc[X.time_step.dt.date.isin(fr_holidays), "is_holidays"] = 1
-        return X
-```
 
 There is on average more consumption during weekends, as expected.
 
@@ -284,17 +255,68 @@ Holidays:
 Y_train.groupby(X_train.is_holidays).mean()
 ```
 
+### Adding extra features
+
+
+By looking at the data, these features can be added:
+
+```python
+X_train["is_breakfast"] = ((X_train.hour>5) & (X_train.hour<9))*1 
+X_train["is_teatime"] = ((X_train.hour>16) & (X_train.hour<20))*1 
+X_train["is_TVtime"] = ((X_train.hour>17) & (X_train.hour<23))*1
+# X_train["is_working_hour"] = ((X_train.hour>7) & (X_train.hour<19))*1
+X_train["is_night"] = ((X_train.hour>0) & (X_train.hour<7))*1
+```
+
+Let's put all in a transformer!
+
+```python
+class DataAugmenter(BaseEstimator, TransformerMixin):
+    
+    def __init__(self):
+        self.X = None
+    
+    def fit(self, X, y=None):
+        return X
+    
+    def transform(self, X, y=None):
+        X["time_step"] = pd.to_datetime(X["time_step"])
+        X["weekday"] = X.time_step.dt.dayofweek
+        X["month"] = X.time_step.dt.month
+        X["hour"] = X.time_step.dt.hour
+        X["is_weekend"] = (X["weekday"] > 4)*1  
+        X["is_holidays"] = (X.time_step.dt.date.isin(fr_holidays))*1
+        
+        X["is_breakfast"] = ((X.hour>5) & (X.hour<9))*1 
+        X["is_teatime"] = ((X.hour>16) & (X.hour<20))*1 
+        X["is_TVtime"] = ((X.hour>17) & (X.hour<23))*1
+        # X_train["is_working_hour"] = ((X_train.hour>7) & (X_train.hour<19))*1
+        X["is_night"] = ((X.hour>0) & (X.hour<7))*1
+        return X
+```
+
 ---
 ---
 ---
 
 
-## Regression, a baseline model
+## Modeling
+
+
+### Regression, a baseline model
 
 
 [MultiOutputRegressor](https://scikit-learn.org/stable/modules/generated/sklearn.multioutput.MultiOutputRegressor.html) consists of fitting one regressor per target. 
 
 This is a simple strategy for extending regressors that do not natively support multi-target regression.
+
+
+Test cold months only:
+
+```python
+# Y_train = Y_train.loc[(X_train.month<4) | (X_train.month>8)]
+# X_train = X_train.loc[(X_train.month<4) | (X_train.month>8)]
+```
 
 ```python
 regressor = MultiOutputRegressor(LinearRegression())
@@ -338,7 +360,7 @@ y_pred = regressor.predict(x_valid)
 ```
 
 ```python
-pred = pd.DataFrame(y_pred, columns=train_y.columns)
+pred = pd.DataFrame(y_pred, columns=y_train.columns)
 pred["time_step"] = X_train.time_step
 ```
 
@@ -371,7 +393,7 @@ def metric_nilm(dataframe_y_true, dataframe_y_pred):
 metric_nilm(y_valid, pred)
 ```
 
-### Test Submission
+##### Test Submission
 
 ```python
 X_test = pd.read_csv(
@@ -406,12 +428,123 @@ pred= pd.concat([time, pred], axis=1)
 ```
 
 ```python
-pred_t.head()
+pred.head()
 ```
 
 ```python
 pred.to_csv("test_submission.csv", index=False)
 ```
+
+### Random Forest, a look at feature importance
+
+```python
+from sklearn.ensemble import RandomForestRegressor
+```
+
+```python
+regressor = MultiOutputRegressor(RandomForestRegressor())
+```
+
+```python
+x_train, x_valid, y_train, y_valid = train_test_split(
+    X_train.drop('time_step', axis=1), Y_train.drop('time_step', axis=1), test_size=0.33, random_state=42)
+```
+
+```python
+# regressor.fit(x_train, y_train)
+```
+
+```python
+# print(regr.feature_importances_)
+```
+
+### Preprocessing
+
+
+Build a custom OneHotEncoder
+
+```python
+class MyOneHotEncoder(BaseEstimator, TransformerMixin):
+
+    def __init__(self):
+        self.all_possible_hours = np.arange(0, 24)
+        self.all_possible_weekdays = np.arange(0, 7)
+        self.all_possible_months = np.arange(1, 13)
+        self.ohe_hours = OneHotEncoder(drop="first")
+        self.ohe_weekdays = OneHotEncoder(drop="first")
+        self.ohe_months = OneHotEncoder(drop="first")
+    
+    def fit(self, X):
+        self.ohe_hours.fit(self.all_possible_hours.reshape(-1,1))
+        self.ohe_weekdays.fit(self.all_possible_weekdays.reshape(-1,1))
+        self.ohe_months.fit(self.all_possible_months.reshape(-1,1))
+
+    def transform(self, X, y=None):
+        hours = pd.DataFrame(self.ohe_hours.transform(X.hour.values.reshape(-1,1)).toarray(), 
+                             columns=["hour_"+str(i) for i in range(1, 24)])
+        weekdays = pd.DataFrame(self.ohe_weekdays.transform(X.weekday.values.reshape(-1,1)).toarray(), 
+                             columns=["weekday_"+str(i) for i in range(1, 7)])
+        months = pd.DataFrame(self.ohe_months.transform(X.month.values.reshape(-1,1)).toarray(), 
+                             columns=["month_"+str(i) for i in range(2, 13)])
+        X = pd.concat([X, hours, weekdays, months], axis=1)
+        return X
+```
+
+```python
+oh = MyOneHotEncoder()
+oh.fit(X_train)
+```
+
+```python
+pd.set_option('display.max_columns', None)
+```
+
+```python
+oh.transform(X_train).tail()
+```
+
+Testing Pipeline:
+
+```python
+X_train = pd.read_csv(
+    'provided_data_and_metric/X_train_6GWGSxz.csv',
+)
+Y_train = pd.read_csv(
+    'provided_data_and_metric/y_train_2G60rOL.csv',
+)
+```
+
+It doesn't work if I uncomment. Why?
+
+```python
+p = Pipeline([
+    (
+        '1',
+        DataImputer()
+    ),
+#     (
+#         '2',
+#         DataAugmenter()
+#     ),
+#     (
+#         '3',
+#         MyOneHotEncoder()
+#     ),
+])
+```
+
+```python
+p.fit(X_train)
+```
+
+```python
+p.transform(X_train)
+```
+
+---
+---
+---
+
 
 ## RNN, testing
 
@@ -452,7 +585,7 @@ class DataImputer(BaseEstimator, TransformerMixin):
         except KeyError as e:
             pass
         X = X.interpolate(method='linear').fillna(method='bfill')
-#         X.index = pd.to_datetime(X.index)
+        X.index = pd.to_datetime(X.index)
         return X
 ```
 
@@ -483,13 +616,16 @@ class DataAugmenter(BaseEstimator, TransformerMixin):
     def transform(self, X, y=None):
         X["time_step"] = pd.to_datetime(X["time_step"])
         X["weekday"] = X.time_step.dt.dayofweek
-        X["week"] = X.time_step.dt.week
         X["month"] = X.time_step.dt.month
         X["hour"] = X.time_step.dt.hour
-        X["is_weekend"] = np.zeros(X.shape[0])  
-        X.loc[X["weekday"] > 4, "is_weekend"] = 1
-        X["is_holidays"] = np.zeros(X.shape[0])  
-        X.loc[X.time_step.dt.date.isin(fr_holidays), "is_holidays"] = 1
+        X["is_weekend"] = (X["weekday"] > 4)*1  
+        X["is_holidays"] = (X.time_step.dt.date.isin(fr_holidays))*1
+        
+        X["is_breakfast"] = ((X.hour>5) & (X.hour<9))*1 
+        X["is_teatime"] = ((X.hour>16) & (X.hour<20))*1 
+        X["is_TVtime"] = ((X.hour>17) & (X.hour<23))*1
+        # X_train["is_working_hour"] = ((X_train.hour>7) & (X_train.hour<19))*1
+        X["is_night"] = ((X.hour>0) & (X.hour<7))*1
         return X
 ```
 
