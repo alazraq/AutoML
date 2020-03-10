@@ -1,5 +1,8 @@
+
+# Custom excludes
 *.csv
 .idea/
+*.ipynb
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -139,4 +142,4 @@ dmypy.json
 # MAC
 
 .DS_Store
-test.ipynb
+#test.ipynb

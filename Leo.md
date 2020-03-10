@@ -6,11 +6,11 @@ jupyter:
       extension: .md
       format_name: markdown
       format_version: '1.2'
-      jupytext_version: 1.3.4
+      jupytext_version: 1.3.3
   kernelspec:
-    display_name: .venv
+    display_name: Python 3
     language: python
-    name: .venv
+    name: python3
 ---
 
 # Data Challenge: Smart meter is coming
@@ -18,7 +18,7 @@ by BCM Energy - Planète OUI
 
 ```python
 import pandas as pd
-import pandas_profiling
+# import pandas_profiling
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -72,7 +72,7 @@ class DataImputer(BaseEstimator, TransformerMixin):
         self.X = None
     
     def fit(self, X, y=None):
-        return X
+        return self
     
     def transform(self, X, y=None):
         try:
@@ -277,7 +277,7 @@ class DataAugmenter(BaseEstimator, TransformerMixin):
         self.X = None
     
     def fit(self, X, y=None):
-        return X
+        return self
     
     def transform(self, X, y=None):
         X["time_step"] = pd.to_datetime(X["time_step"])
@@ -474,12 +474,14 @@ class MyOneHotEncoder(BaseEstimator, TransformerMixin):
         self.ohe_weekdays = OneHotEncoder(drop="first")
         self.ohe_months = OneHotEncoder(drop="first")
     
-    def fit(self, X):
+    def fit(self, X, y=None):
         self.ohe_hours.fit(self.all_possible_hours.reshape(-1,1))
         self.ohe_weekdays.fit(self.all_possible_weekdays.reshape(-1,1))
         self.ohe_months.fit(self.all_possible_months.reshape(-1,1))
+        return self
 
     def transform(self, X, y=None):
+#         self.fit(X)
         hours = pd.DataFrame(self.ohe_hours.transform(X.hour.values.reshape(-1,1)).toarray(), 
                              columns=["hour_"+str(i) for i in range(1, 24)])
         weekdays = pd.DataFrame(self.ohe_weekdays.transform(X.weekday.values.reshape(-1,1)).toarray(), 
@@ -522,14 +524,14 @@ p = Pipeline([
         '1',
         DataImputer()
     ),
-#     (
-#         '2',
-#         DataAugmenter()
-#     ),
-#     (
-#         '3',
-#         MyOneHotEncoder()
-#     ),
+    (
+        '2',
+        DataAugmenter()
+    ),
+    (
+        '3',
+        MyOneHotEncoder()
+    ),
 ])
 ```
 
