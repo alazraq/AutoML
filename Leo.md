@@ -500,7 +500,7 @@ pd.set_option('display.max_columns', None)
 ```
 
 ```python
-oh.transform(X_train).tail()
+x_train = oh.transform(X_train)
 ```
 
 Testing Pipeline:
@@ -541,6 +541,63 @@ p.fit(X_train)
 p.transform(X_train)
 ```
 
+## Predicting if appliance is on or off
+There is a huge difference in consumption when an appliance is on or off.
+
+
+Fridge:
+
+```python
+Y_train.fridge_freezer[Y_train.fridge_freezer != 0].mean()
+```
+
+```python
+Y_train.fridge_freezer.mean()
+```
+
+Kettle:
+
+```python
+Y_train.kettle[Y_train.kettle != 0].mean()
+```
+
+```python
+Y_train.kettle.mean()
+```
+
+Washing Machine:
+
+```python
+Y_train.washing_machine[Y_train.washing_machine != 0].mean()
+```
+
+```python
+Y_train.washing_machine.mean()
+```
+
+The TV is always on:
+
+```python
+(Y_train.TV != 0).sum() == len(Y_train)
+```
+
+```python
+Y_train.TV.std()
+```
+
+```python
+fig, axs = plt.subplots(2,2, figsize=(15,15))
+axs[0,0].scatter(X_train.consumption[Y_train.washing_machine > 0], Y_train.washing_machine[Y_train.washing_machine > 0], c="red")
+axs[0,0].scatter(X_train.consumption[Y_train.washing_machine == 0], Y_train.washing_machine[Y_train.washing_machine == 0], c="blue")
+axs[0,1].scatter(X_train.consumption, Y_train.fridge_freezer )
+axs[1,0].scatter(X_train.consumption, Y_train.TV )
+axs[1,1].scatter(X_train.consumption, Y_train.kettle)
+```
+
+---
+---
+---
+---
 ---
 ---
 ---

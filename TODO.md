@@ -4,3 +4,4 @@
 - Try to drop NaNs, given we do not use RNN
 - Train 4 different models, looking at each one individually
 - Fix Pipeline in preprocessing section
+- Deep Learning
