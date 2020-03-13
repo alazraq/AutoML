@@ -13,7 +13,10 @@ jupyter:
     name: python3
 ---
 
-# Trying to fit GBM
+# Using Classical ML models fot Time Series Predictions
+
+
+## Importing useful libraries
 
 ```python
 import pandas as pd
@@ -39,8 +42,23 @@ from sklearn.multioutput import MultiOutputRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.base import BaseEstimator
+from sklearn.linear_model import LinearRegression
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.linear_model import RidgeCV
+import numpy as np
+from sklearn.kernel_ridge import KernelRidge
+from sklearn import ensemble
+import xgboost as xgb
+from xgboost.sklearn import XGBRegressor
+from sklearn.preprocessing import StandardScaler
+
 import datetime
 ```
+
+## Loading Data
 
 ```python
 X_train = pd.read_csv(
@@ -53,6 +71,16 @@ X_test = pd.read_csv(
     'provided_data_and_metric/X_test_c2uBt2s.csv', 
 )
 ```
+
+```python
+X_train.head()
+```
+
+```python
+Y_train.head()
+```
+
+## Data Preprocessing and Feature Engineering
 
 ```python
 class DataImputer(BaseEstimator, TransformerMixin):
@@ -127,12 +155,17 @@ p2 = Pipeline([
 ```python
 X = p1.transform(X_train)
 X_t = p1.transform(X_test)
-X.shape
+X.head()
 ```
 
 ```python
 Y = p2.transform(Y_train)
 Y.head()
+```
+
+```python
+time_step = Y['time_step']
+type(time_step)
 ```
 
 ```python
@@ -142,6 +175,8 @@ Y.head()
 #X["kettle"] = Y["kettle"]
 ```
 
+## Build a regressor for each of the targets seperately
+
 ```python
 y1 = Y["TV"]
 y2 = Y["kettle"]
@@ -150,23 +185,7 @@ y4 = Y["fridge_freezer"]
 ```
 
 ```python
-X.head()
-```
-
-```python
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.base import BaseEstimator
-from sklearn.linear_model import LinearRegression
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.linear_model import RidgeCV
-import numpy as np
-from sklearn.kernel_ridge import KernelRidge
-from sklearn import ensemble
-import xgboost as xgb
-from xgboost.sklearn import XGBRegressor
-from sklearn.preprocessing import StandardScaler
-
-class Regressor(BaseEstimator):
+class Regressor():
     def __init__(self):
         self.scaler = StandardScaler()
         params = {'learning_rate': 0.1,
@@ -204,6 +223,17 @@ class Regressor(BaseEstimator):
              silent=None, subsample=0.6, verbosity=1) 
         '''
         self.reg = RandomForestRegressor()
+        
+        #self.reg = GradientBoostingRegressor(alpha=0.9, criterion='friedman_mse', init=None,
+        #                  learning_rate=0.1, loss='ls', max_depth=10,
+        #                  max_features=0.4, max_leaf_nodes=None,
+        #                  min_impurity_decrease=0.0, min_impurity_split=None,
+        #                  min_samples_leaf=9, min_samples_split=10,
+        #                  min_weight_fraction_leaf=0.0, n_estimators=100,
+        #                  n_iter_no_change=None, presort='auto',
+        #                  random_state=None, subsample=1.0, tol=0.0001,
+        #                  validation_fraction=0.1, verbose=0, warm_start=False)
+        
         #self.reg = DecisionTreeRegressor(max_depth = 15)
         #self.reg = KernelRidge(alpha=1.0, coef0=1, degree=3, gamma=None, kernel='linear',
         #    kernel_params=None)
@@ -241,13 +271,32 @@ regressor_4.fit(X,y4)
 ```
 
 ```python
-pred_1 = regressor_1.predict(X_t)
-pred_2 = regressor_2.predict(X_t)
-pred_3 = regressor_3.predict(X_t)
+#pred_1 = regressor_1.predict(X_t)
+#pred_2 = regressor_2.predict(X_t)
+#pred_3 = regressor_3.predict(X_t)
+#pred_4 = regressor_4.predict(X_t)
+
+pred_1 = regressor_1.predict(X)
+pred_2 = regressor_2.predict(X)
+pred_3 = regressor_3.predict(X)
+pred_4 = regressor_4.predict(X)
 ```
 
 ```python
-len(pred_2)
+pred = pd.DataFrame({'time_step': time_step,'TV':pred_1, 'kettle':pred_2, 'washing_machine': pred_3, 'fridge_freezer': pred_4})
+```
+
+```python
+pred.head()
+```
+
+```python
+Y.head()
+```
+
+```python
+print(len(pred))
+print(len(Y))
 ```
 
 ```python
@@ -270,5 +319,5 @@ def metric_nilm(dataframe_y_true, dataframe_y_pred):
 ```
 
 ```python
-metric_nilm(y_valid, pred)
+metric_nilm(Y, pred)
 ```
