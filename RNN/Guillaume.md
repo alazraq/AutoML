@@ -6,7 +6,7 @@ jupyter:
       extension: .md
       format_name: markdown
       format_version: '1.2'
-      jupytext_version: 1.4.0
+      jupytext_version: 1.3.3
   kernelspec:
     display_name: Python 3
     language: python
@@ -102,8 +102,8 @@ class YImputer(BaseEstimator, TransformerMixin):
 ```python
 di = DataImputer()
 yi = YImputer()
-X_train = di.transform(X=X_train)
-Y_train = yi.transform(X=Y_train)
+X_train = di.transform(x=X_train)
+Y_train = yi.transform(x=Y_train)
 ```
 
 ```python
@@ -409,9 +409,9 @@ time = X_test["time_step"]
 ```
 
 ```python
-X_test = di.transform(X=X_test)
+X_test = di.transform(x=X_test)
 ag = DataAugmenter()
-X_test = ag.transform(X=X_test)
+X_test = ag.transform(x=X_test)
 ```
 
 ```python
@@ -481,7 +481,6 @@ class MyOneHotEncoder(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X, y=None):
-#         self.fit(X)
         hours = pd.DataFrame(self.ohe_hours.transform(X.hour.values.reshape(-1,1)).toarray(), 
                              columns=["hour_"+str(i) for i in range(1, 24)])
         weekdays = pd.DataFrame(self.ohe_weekdays.transform(X.weekday.values.reshape(-1,1)).toarray(), 
@@ -829,9 +828,6 @@ Fit StandardScaler before, gives error in Pipeline
 ```python
 scaler_x = StandardScaler()
 scaler_x.fit(X_train)
-```
-
-```python
 scaler_y = StandardScaler()
 scaler_y.fit(Y_train)
 ```
