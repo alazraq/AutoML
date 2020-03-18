@@ -140,6 +140,7 @@ dmypy.json
 .pytype/
 
 # MAC
-
 .DS_Store
-#test.ipynb
+
+#Notebooks
+Abdou.ipynb
