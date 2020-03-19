@@ -1,4 +1,5 @@
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.preprocessing import OneHotEncoder
 import numpy as np
 import pandas as pd
 
@@ -20,10 +21,16 @@ class MyOneHotEncoder(BaseEstimator, TransformerMixin):
 
     def transform(self, X, y=None):
         hours = pd.DataFrame(self.ohe_hours.transform(X.hour.values.reshape(-1,1)).toarray(), 
-                             columns=["hour_"+str(i) for i in range(1, 24)])
-        weekdays = pd.DataFrame(self.ohe_weekdays.transform(X.weekday.values.reshape(-1,1)).toarray(), 
-                             columns=["weekday_"+str(i) for i in range(1, 7)])
+                             columns=["hour_"+str(i) for i in range(1, 24)],
+                             index=X.index
+                            )
+        weekdays = pd.DataFrame(self.ohe_weekdays.transform(X.weekday.values.reshape(-1,1)).toarray(),
+                                columns=["weekday_"+str(i) for i in range(1, 7)],
+                                index=X.index
+                               )
         months = pd.DataFrame(self.ohe_months.transform(X.month.values.reshape(-1,1)).toarray(), 
-                             columns=["month_"+str(i) for i in range(2, 13)])
+                              columns=["month_"+str(i) for i in range(2, 13)],
+                              index=X.index
+                             )
         X = pd.concat([X, hours, weekdays, months], axis=1)
         return X

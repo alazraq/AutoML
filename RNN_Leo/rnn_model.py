@@ -8,27 +8,49 @@ class RNNModel:
 
     COLUMNS = ['washing_machine', 'fridge_freezer', 'TV', 'kettle']
 
-    def __init__(self, batch_size=60, features=17):
+    def __init__(self, batch_size=60, features=57):
+        self.history = None
         self.batch_size = batch_size
         self.features = features
         self.model = Sequential()
-        self.model.add(SimpleRNN(
-            units=20,
-            input_shape=[self.batch_size, self.features],
-            return_sequences=True
-        ))
-        self.model.add(LSTM(
-            units=20,
-            return_sequences=True,
-            input_shape=[self.batch_size, self.features]
-        ))
-        self.model.add(LSTM(19, return_sequences=True))
-        self.model.add(LSTM(19))
-        self.model.add(Dense(units=4))
-        self.model.compile(loss="mse", optimizer="adam", metrics=['accuracy'])
-        self.history = None
+        
+        self.model.add(
+            SimpleRNN(
+                units=20,
+                input_shape=[None, self.features],
+                return_sequences=True
+            )
+        )
+        self.model.add(
+            LSTM(
+                units=20,
+                return_sequences=True,
+#                 input_shape=[None, self.features]
+            )
+        )
+        self.model.add(
+            LSTM(
+                19,
+                return_sequences=True
+            )
+        )
+#         self.model.add(
+#             LSTM(
+#                 19
+#             )
+#         )
+        self.model.add(
+            Dense(
+                units=4
+            )
+        )
+        self.model.compile(
+            loss="mse", 
+            optimizer="adam", 
+        )
+        
 
-    def fit(self, x_train, y_train, x_valid=None, y_valid=None, epochs=10):
+    def fit(self, x_train, y_train, x_valid, y_valid, epochs=10):
         self.history = self.model.fit(
             x_train,
             y_train,

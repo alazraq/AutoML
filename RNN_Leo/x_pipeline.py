@@ -1,20 +1,23 @@
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
 
-from data_augmenter import DataAugmenter
 from data_imputer import DataImputer
+from my_standard_scaler import MyStandardScaler
+from data_augmenter import DataAugmenter
+from my_one_hot_encoder import MyOneHotEncoder
 from rnn_data_formatter import RNNDataFormatter
+
 
 
 class XPipeline:
 
     def __init__(self):
         self.pipeline = Pipeline([
-            ('DataImputer', DataImputer()),
-            ('DataAugmenter', DataAugmenter()),
-        #   ('StandardScaler', StandardScaler()),
-            ('RNNDataFormatter', RNNDataFormatter())
-        ])
+    			('DataImputer', DataImputer()),
+    			('MyStandardScaler', MyStandardScaler()),
+    			('DataAugmenter', DataAugmenter()),
+    			('MyOneHotEncoder', MyOneHotEncoder()),
+  			('RNNDataFormatter', RNNDataFormatter())
+	])
 
     def fit(self, x):
         return self.pipeline.fit(x)
