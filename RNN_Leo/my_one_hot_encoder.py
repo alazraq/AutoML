@@ -33,4 +33,5 @@ class MyOneHotEncoder(BaseEstimator, TransformerMixin):
                               index=X.index
                              )
         X = pd.concat([X, hours, weekdays, months], axis=1)
+        X.drop(["month", "weekday", "hour"], axis=1, inplace=True)
         return X

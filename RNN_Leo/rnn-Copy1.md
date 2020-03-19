@@ -3,9 +3,7 @@ import math as mt
 import numpy as np
 import pandas as pd
 
-import tensorflow as tf
-import keras
-from keras.layers import LSTM, Dense, Flatten, Dropout, Activation, GRU, TimeDistributed, InputLayer, Conv1D, Conv2D, Conv3D
+from keras.layers import LSTM, Dense, Flatten, Dropout, Activation, SimpleRNN, TimeDistributed
 from keras.models import Sequential
 from keras.callbacks import EarlyStopping
 from keras.optimizers import Adam
@@ -39,10 +37,17 @@ py = YPipeline()
 pd.set_option('display.max_columns', None)
 ```
 
-## Modeling
+## Preprocessing
 
 ```python
-Y_train.drop(["kettle", "washing_machine", "TV"], axis=1, inplace=True)
+kettle = pd.DataFrame(Y_train.kettle)
+tv = pd.DataFrame(Y_train.TV)
+washing_machine = pd.DataFrame(Y_train.washing_machine)
+fridge_freezer = pd.DataFrame(Y_train.fridge_freezer)
+```
+
+```python
+kettle
 ```
 
 ```python
@@ -51,7 +56,7 @@ x = px.fit(X_train)
 x = px.transform(X_train)
 print('End of first transform')
 y = py.fit(Y_train)
-y = py.transform(Y_train)
+y = py.transform(kettle)
 print('Second transform')
 x_train, y_train = x[:6000, :], y[:6000, :, :]
 x_valid, y_valid = x[6000:, :], y[6000:, :, :]
@@ -67,7 +72,7 @@ class RNNModel:
 
     COLUMNS = ['washing_machine', 'fridge_freezer', 'TV', 'kettle']
 
-    def __init__(self, batch_size=60, features=54):
+    def __init__(self, batch_size=60, features=57):
         self.history = None
         self.batch_size = batch_size
         self.features = features
@@ -90,8 +95,9 @@ class RNNModel:
             )
         )
         self.model.add(
-            TimeDistributed(Dense(1)
-                           )
+            Dense(
+                units=1
+            )
         )
         self.model.compile(
             loss="mse", 
@@ -141,103 +147,31 @@ class RNNModel:
 ```
 
 ```python
-rnn = RNNModel(60)
-rnn.fit(x_train, y_train, x_valid, y_valid, 20)
+y
 ```
 
 ```python
-pred = rnn.predict(x_valid)
+x_train, y_train = x[:6000, :], y[:6000, :, :]
+x_valid, y_valid = x[6000:, :], y[6000:, :, :]
+```
+
+```python
+rnn = RNNModel(60)
+rnn.fit(x_train, y_train, x_valid, y_valid, 1000)
+```
+
+```python
+pred = rnn.model.predict(x_valid)
+```
+
+```python
+(pred>500).sum()
+```
+
+```python
+(Y_train.kettle > 10).sum()
 ```
 
 ```python
 rnn.nilm_metric(y_valid, pred)
-```
-
-## Wave Net
-
-```python
-np.random.seed(42)
-tf.random.set_seed(42)
-
-model = keras.models.Sequential([
-    keras.layers.GRU(20, return_sequences=True, input_shape=[None, 54]),
-    keras.layers.GRU(20, return_sequences=True),
-    keras.layers.TimeDistributed(keras.layers.Dense(1))
-])
-```
-
-```python
-model.compile(loss="mse", optimizer="adam")
-history = model.fit(x_train, y_train, epochs=20,
-                    validation_data=(x_valid, y_valid))
-```
-
-```python
-pred = rnn.predict(x_valid)
-```
-
-```python
-model = keras.models.Sequential()
-model.add(keras.layers.InputLayer(input_shape=[60, 54]))
-for rate in (1, 2, 4, 8) * 2:
-    model.add(keras.layers.Conv1D(filters=20, kernel_size=2, padding="causal",
-                                  activation="relu", dilation_rate=rate))
-model.add(keras.layers.Conv1D(filters=4, kernel_size=1))
-```
-
-```python
-model.compile(loss="mse", optimizer="adam")
-history = model.fit(x_train, y_train, epochs=20,
-                    validation_data=(x_valid, y_valid))
-```
-
-```python
-COLUMNS = ['washing_machine', 'fridge_freezer', 'TV', 'kettle']
-```
-
-```python
-pred = model.predict(x_valid)
-pred = pred.reshape((pred.shape[0] * pred.shape[1], pred.shape[2]))
-pred = pd.DataFrame(pred, columns=COLUMNS)
-```
-
-```python
-RNNModel.nilm_metric(RNNModel, y_valid, pred)
-```
-
-### submission
-
-```python
-X_test = pd.read_csv(
-    '../provided_data_and_metric/X_test_c2uBt2s.csv',
-)
-X_test.drop('Unnamed: 9', axis=1, inplace=True)
-time = X_test["time_step"]
-X_test.set_index("time_step", inplace=True)
-```
-
-```python
-x_test = px.transform(X_test)
-```
-
-```python
-pred = model.predict(x_test)
-pred = pred.reshape((pred.shape[0] * pred.shape[1], pred.shape[2]))
-pred = pd.DataFrame(pred, columns=COLUMNS)
-```
-
-```python
-pred = pd.concat([time, pred], axis=1)
-```
-
-```python
-
-```
-
-```python
-len(X_test)
-```
-
-```python
-pred.iloc[:226081,:].to_csv("test_submission.csv", index=False)
 ```
