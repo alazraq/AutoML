@@ -435,29 +435,6 @@ pred.head()
 pred.to_csv("test_submission.csv", index=False)
 ```
 
-### Random Forest, a look at feature importance
-
-```python
-from sklearn.ensemble import RandomForestRegressor
-```
-
-```python
-regressor = MultiOutputRegressor(RandomForestRegressor())
-```
-
-```python
-x_train, x_valid, y_train, y_valid = train_test_split(
-    X_train.drop('time_step', axis=1), Y_train.drop('time_step', axis=1), test_size=0.33, random_state=42)
-```
-
-```python
-# regressor.fit(x_train, y_train)
-```
-
-```python
-# print(regr.feature_importances_)
-```
-
 ### Preprocessing
 
 
@@ -481,7 +458,6 @@ class MyOneHotEncoder(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X, y=None):
-#         self.fit(X)
         hours = pd.DataFrame(self.ohe_hours.transform(X.hour.values.reshape(-1,1)).toarray(), 
                              columns=["hour_"+str(i) for i in range(1, 24)])
         weekdays = pd.DataFrame(self.ohe_weekdays.transform(X.weekday.values.reshape(-1,1)).toarray(), 
@@ -919,3 +895,4 @@ y_trans.head()
 ```python
 y_pred[:5, :]
 ```
+
