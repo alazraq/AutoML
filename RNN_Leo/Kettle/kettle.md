@@ -43,6 +43,10 @@ pd.set_option('display.max_columns', None)
 ## Preprocessing
 
 ```python
+Y_train.drop(["washing_machine", "TV", "kettle"], axis=1, inplace=True)
+```
+
+```python
 print('Start of first transform')
 x = px.fit(X_train)
 x = px.transform(X_train)
@@ -75,19 +79,19 @@ def metric_nilm(y_true, y_pred):
     pred = tf.slice(y_pred, [0, 0], [-1, 1])
     score += mt.sqrt(mt.reduce_sum(mt.subtract(pred, test) ** 2) / float(len(test))) * 5.55
 
-    test = tf.slice(y_true, [0, 1], [-1, 1])
-    pred = tf.slice(y_pred, [0, 1], [-1, 1])
-    score += mt.sqrt(mt.reduce_sum(mt.subtract(pred, test) ** 2) / float(len(test))) * 49.79
+#     test = tf.slice(y_true, [0, 1], [-1, 1])
+#     pred = tf.slice(y_pred, [0, 1], [-1, 1])
+#     score += mt.sqrt(mt.reduce_sum(mt.subtract(pred, test) ** 2) / float(len(test))) * 49.79
 
-    test = tf.slice(y_true, [0, 2], [-1, 1])
-    pred = tf.slice(y_pred, [0, 2], [-1, 1])
-    score += mt.sqrt(mt.reduce_sum(mt.subtract(pred, test) ** 2) / float(len(test))) * 14.57
+#     test = tf.slice(y_true, [0, 2], [-1, 1])
+#     pred = tf.slice(y_pred, [0, 2], [-1, 1])
+#     score += mt.sqrt(mt.reduce_sum(mt.subtract(pred, test) ** 2) / float(len(test))) * 14.57
 
-    test = tf.slice(y_true, [0, 3], [-1, 1])
-    pred = tf.slice(y_pred, [0, 3], [-1, 1])
-    score += mt.sqrt(mt.reduce_sum(mt.subtract(pred, test) ** 2) / float(len(test))) * 4.95
+#     test = tf.slice(y_true, [0, 3], [-1, 1])
+#     pred = tf.slice(y_pred, [0, 3], [-1, 1])
+#     score += mt.sqrt(mt.reduce_sum(mt.subtract(pred, test) ** 2) / float(len(test))) * 4.95
 
-    score /= 74.86
+    score /= 5.55
     
     return score
 ```
@@ -98,12 +102,12 @@ model.add(keras.layers.InputLayer(input_shape=[60, 48]))
 for rate in (1, 2, 4, 8) * 2:
     model.add(keras.layers.Conv1D(filters=20, kernel_size=2, padding="causal",
                                   activation="relu", dilation_rate=rate))
-model.add(keras.layers.Conv1D(filters=4, kernel_size=1))
+model.add(keras.layers.Conv1D(filters=1, kernel_size=1))
 ```
 
 ```python
 model.compile(loss=metric_nilm, optimizer=Adam(lr=0.001))
-history = model.fit(x_train, y_train, epochs=20,
+history = model.fit(x_train, y_train, epochs=50,
                     validation_data=(x_valid, y_valid))
 ```
 
