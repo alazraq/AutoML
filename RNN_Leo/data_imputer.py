@@ -12,7 +12,9 @@ class DataImputer(BaseEstimator, TransformerMixin):
 
     def transform(self, x, y=None):
         try:
-            x.drop('Unnamed: 9', axis=1, inplace=True)
+            x.drop(['Unnamed: 9', 'visibility', 'humidity', 'humidex', 'windchill', 'wind', 'pressure'],
+                   axis=1, 
+                   inplace=True)
         except KeyError as e:
             pass
         x = x.interpolate(method='linear').fillna(method='bfill')
