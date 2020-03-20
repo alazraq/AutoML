@@ -1,3 +1,5 @@
+# TV
+
 ```python
 import math
 import numpy as np
@@ -54,9 +56,15 @@ hour_mean = y.groupby(X.hour).mean()
 hour_mean.head()
 ```
 
+Adding new feature:
+
 ```python
 for i in hour_mean.index:
     X.loc[X.hour == i, "hour_mean"] = float(hour_mean.loc[i])
+```
+
+```python
+# X["hour_mean"] = (X.hour.apply(lambda x: hour_mean.loc[x]))
 ```
 
 ```python
@@ -66,11 +74,11 @@ X.head()
 ## Exploration
 
 ```python
-y.loc['2013-12-31 17:11:00':'2013-12-31 17:17:00']
+X.index[y.TV>100]
 ```
 
 ```python
-X.loc['2013-12-31 17:11:00':'2013-12-31 17:17:00', "consumption"]
+y.loc['2013-04-05 12:17:00':'2013-04-05 12:30:00']
 ```
 
 ## Modeling
@@ -86,8 +94,7 @@ print(f"x_valid shape is {x_val.shape}")
 
 ```python
 def nilm_metric(y_true, y_pred):
-        score = 0.0
-        score += math.sqrt(sum((y_pred.get_label() - y_true) ** 2) / len(y_true)) * 4.95
+        score = math.sqrt(sum((y_pred.get_label() - y_true) ** 2) / len(y_true)) * 14.57
         score /= 74.86
         return "nilm", score
 ```
@@ -107,16 +114,8 @@ y_pred = xgb_reg.predict(x_val)
 ```
 
 ```python
-pred_big = y_pred[y_pred>500]
-true_big = y_val.kettle[y_pred>500]
-
-ax = sns.scatterplot(x=true_big, y=pred_big)
-ax.set(xlabel='true', ylabel='predicted')
-plt.show()
-```
-
-```python
-ax = sns.scatterplot(x=y_val.kettle, y=y_pred)
+sns.set(rc={'figure.figsize':(6, 6)})
+ax = sns.scatterplot(x=y_val.TV, y=y_pred)
 ax.set(xlabel='true', ylabel='predicted')
 plt.show()
 ```
@@ -142,16 +141,20 @@ plt.xlim([-1, len(indices)])
 plt.show()
 ```
 
+```python
+X.columns
+```
+
 ### Evaluating Performance
 
 ```python
-pred = pd.DataFrame(y_pred, columns=["kettle"])
+pred = pd.DataFrame(y_pred, columns=["TV"])
 ```
 
 ```python
 def nilm_metric(y_true, y_pred):
         score = 0.0
-        score += math.sqrt(sum((y_pred.values - y_true.values) ** 2) / len(y_true)) * 4.95
+        score += math.sqrt(sum((y_pred.values - y_true.values) ** 2) / len(y_true)) * 14.57
         score /= 74.86
         return score
 ```
@@ -162,8 +165,8 @@ nilm_metric(y_val, pred)
 
 ```python
 plt.figure(num=None, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
-plt.scatter(pred.kettle, y_val.kettle)
-plt.plot(np.linspace(0,3000), np.linspace(0,3000), c="orange")
+plt.scatter(pred.TV, y_val.TV)
+plt.plot(np.linspace(0,120), np.linspace(0,120), c="orange")
 plt.show()
 ```
 
@@ -187,8 +190,12 @@ for i in hour_mean.index:
 ```
 
 ```python
+x_test.head()
+```
+
+```python
 pred = xgb_reg.predict(x_test)
-pred = pd.DataFrame(pred, columns=["kettle"])
+pred = pd.DataFrame(pred, columns=["TV"])
 ```
 
 ```python
@@ -196,5 +203,5 @@ pred = pd.concat([time, pred], axis=1)
 ```
 
 ```python
-pred.to_csv("kettle.csv", index=False)
+pred.to_csv("TV.csv", index=False)
 ```

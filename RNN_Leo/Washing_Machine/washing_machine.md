@@ -56,8 +56,15 @@ hour_mean = y.groupby(X.hour).mean()
 hour_mean.head()
 ```
 
+Adding new feature:
+
 ```python
-X["hour_mean"] = (X.hour.apply(lambda x: hour_mean.loc[x]))
+for i in hour_mean.index:
+    X.loc[X.hour == i, "hour_mean"] = float(hour_mean.loc[i])
+```
+
+```python
+# X["hour_mean"] = (X.hour.apply(lambda x: hour_mean.loc[x]))
 ```
 
 ```python
@@ -67,11 +74,11 @@ X.head()
 ## Exploration
 
 ```python
-y.loc['2013-12-31 17:11:00':'2013-12-31 17:17:00']
+y.loc['2013-03-22 21:24:00':'2013-03-22 23:15:00']
 ```
 
 ```python
-X.loc['2013-12-31 17:11:00':'2013-12-31 17:17:00', "consumption"]
+X.index[y.washing_machine>500]
 ```
 
 ## Modeling
@@ -88,13 +95,13 @@ print(f"x_valid shape is {x_val.shape}")
 ```python
 def nilm_metric(y_true, y_pred):
         score = 0.0
-        score += math.sqrt(sum((y_pred.get_label() - y_true) ** 2) / len(y_true)) * 4.95
-        score /= 4.95
+        score += math.sqrt(sum((y_pred.get_label() - y_true) ** 2) / len(y_true)) * 5.55
+        score /= 74.86
         return "nilm", score
 ```
 
 ```python
-xgb_reg = xgb.XGBRegressor(max_depth=10, learning_rate=0.1, random_state=42)
+xgb_reg = xgb.XGBRegressor(max_depth=10, learning_rate=0.1, n_estimators=100, random_state=42)
 
 xgb_reg.fit(x_train, y_train,
             eval_set=[(x_val, y_val)],
@@ -108,16 +115,7 @@ y_pred = xgb_reg.predict(x_val)
 ```
 
 ```python
-pred_big = y_pred[y_pred>500]
-true_big = y_val.kettle[y_pred>500]
-
-ax = sns.scatterplot(x=true_big, y=pred_big)
-ax.set(xlabel='true', ylabel='predicted')
-plt.show()
-```
-
-```python
-ax = sns.scatterplot(x=y_val.kettle, y=y_pred)
+ax = sns.scatterplot(x=y_val.washing_machine, y=y_pred)
 ax.set(xlabel='true', ylabel='predicted')
 plt.show()
 ```
@@ -146,49 +144,25 @@ plt.show()
 ### Evaluating Performance
 
 ```python
-pred = model.predict(x_valid)
-pred = pred.reshape((pred.shape[0] * pred.shape[1], pred.shape[2]))
-pred = pd.DataFrame(pred, columns=COLUMNS)
+pred = pd.DataFrame(y_pred, columns=["washing_machine"])
 ```
 
 ```python
 def nilm_metric(y_true, y_pred):
-        if not isinstance(y_true, pd.DataFrame):
-            y_true = y_true.reshape((y_true.shape[0] * y_true.shape[1], y_true.shape[2]))
-            y_true_df = pd.DataFrame(y_true, columns=COLUMNS)
-        else:
-            y_true_df = y_true
-        if not isinstance(y_pred, pd.DataFrame):
-            y_pred = y_pred.reshape((y_pred.shape[0] * y_pred.shape[1], y_pred.shape[2]))
-            y_pred_df = pd.DataFrame(y_pred, columns=COLUMNS)
-        else:
-            y_pred_df = y_pred
-
         score = 0.0
-        test = y_true_df['washing_machine']
-        pred = y_pred_df['washing_machine']
-        score += math.sqrt(sum((pred.values - test.values) ** 2) / len(test)) * 5.55
-        test = y_true_df['fridge_freezer']
-        pred = y_pred_df['fridge_freezer']
-        score += math.sqrt(sum((pred.values - test.values) ** 2) / len(test)) * 49.79
-        test = y_true_df['TV']
-        pred = y_pred_df['TV']
-        score += math.sqrt(sum((pred.values - test.values) ** 2) / len(test)) * 14.57
-        test = y_true_df['kettle']
-        pred = y_pred_df['kettle']
-        score += math.sqrt(sum((pred.values - test.values) ** 2) / len(test)) * 4.95
+        score += math.sqrt(sum((y_pred.values - y_true.values) ** 2) / len(y_true)) * 5.55
         score /= 74.86
         return score
 ```
 
 ```python
-nilm_metric(y_valid, pred)
+nilm_metric(y_val, pred)
 ```
 
 ```python
 plt.figure(num=None, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
-plt.scatter(pred.kettle, y_valid[...,3].flatten())
-plt.plot(np.linspace(0,3000), np.linspace(0,3000), c="orange")
+plt.scatter(pred.washing_machine, y_val.washing_machine)
+plt.plot(np.linspace(0,2500), np.linspace(0,2500), c="orange")
 plt.show()
 ```
 
@@ -196,20 +170,24 @@ plt.show()
 
 ```python
 X_test = pd.read_csv(
-    '../provided_data_and_metric/X_test_c2uBt2s.csv',
+    '../../provided_data_and_metric/X_test_c2uBt2s.csv',
 )
 time = X_test["time_step"]
 X_test.set_index("time_step", inplace=True)
 ```
 
 ```python
-x_test = px.transform(X_test.iloc[:-1,])
+x_test = px.transform(X_test)
 ```
 
 ```python
-pred = model.predict(x_test)
-pred = pred.reshape((pred.shape[0] * pred.shape[1], pred.shape[2]))
-pred = pd.DataFrame(pred, columns=COLUMNS)
+for i in hour_mean.index:
+    x_test.loc[x_test.hour == i, "hour_mean"] = float(hour_mean.loc[i])
+```
+
+```python
+pred = xgb_reg.predict(x_test)
+pred = pd.DataFrame(pred, columns=["washing_machine"])
 ```
 
 ```python
@@ -217,9 +195,5 @@ pred = pd.concat([time, pred], axis=1)
 ```
 
 ```python
-pred.fillna(method="ffill", inplace=True)
-```
-
-```python
-pred.to_csv("test_submission.csv", index=False)
+pred.to_csv("washing_machine.csv", index=False)
 ```
