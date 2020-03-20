@@ -20,15 +20,15 @@ from y_pipeline import YPipeline
 
 ```python
 X_train = pd.read_csv(
-    '../provided_data_and_metric/X_train_6GWGSxz.csv',
+    '../../provided_data_and_metric/X_train_6GWGSxz.csv',
 )
 X_train.set_index("time_step", inplace=True)
 Y_train = pd.read_csv(
-    '../provided_data_and_metric/y_train_2G60rOL.csv',
+    '../../provided_data_and_metric/y_train_2G60rOL.csv',
 )
 Y_train.set_index("time_step", inplace=True)
 X_test = pd.read_csv(
-    '../provided_data_and_metric/X_test_c2uBt2s.csv',
+    '../../provided_data_and_metric/X_test_c2uBt2s.csv',
 )
 X_test.set_index("time_step", inplace=True)
 
@@ -43,10 +43,6 @@ pd.set_option('display.max_columns', None)
 ## Preprocessing
 
 ```python
-Y_train.drop(["washing_machine", "TV", "kettle"], axis=1, inplace=True)
-```
-
-```python
 print('Start of first transform')
 x = px.fit(X_train)
 x = px.transform(X_train)
@@ -54,8 +50,10 @@ print('End of first transform')
 y = py.fit(Y_train)
 y = py.transform(Y_train)
 print('Second transform')
-x_train, y_train = x[:6000, :], y[:6000, :, :]
-x_valid, y_valid = x[6000:, :], y[6000:, :, :]
+```
+
+```python
+x
 ```
 
 ```python
