@@ -1,3 +1,5 @@
+# Washing Machine
+
 ```python
 import math
 import numpy as np

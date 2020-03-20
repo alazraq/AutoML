@@ -12,7 +12,7 @@ class YImputer(BaseEstimator, TransformerMixin):
     
     def transform(self, x, y=None):
         try:
-            x.drop(['washing_machine', 'TV', 'fridge_freezer'], axis=1, inplace=True)
+            x.drop(['kettle', 'TV', 'fridge_freezer'], axis=1, inplace=True)
         except KeyError as e:
             pass
         x = x.interpolate(method='linear').fillna(method='bfill')

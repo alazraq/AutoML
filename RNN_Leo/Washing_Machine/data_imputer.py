@@ -2,17 +2,19 @@ import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
 
 
-class YImputer(BaseEstimator, TransformerMixin):
-    
+class DataImputer(BaseEstimator, TransformerMixin):  
+
     def __init__(self):
-        pass
+        self.X = None
 
     def fit(self, x, y=None):
         return self
-    
+
     def transform(self, x, y=None):
         try:
-            x.drop(['washing_machine', 'TV', 'fridge_freezer'], axis=1, inplace=True)
+            x.drop(['Unnamed: 9', 'visibility', 'humidity', 'humidex', 'windchill', 'wind', 'pressure'],
+                   axis=1, 
+                   inplace=True)
         except KeyError as e:
             pass
         x = x.interpolate(method='linear').fillna(method='bfill')
