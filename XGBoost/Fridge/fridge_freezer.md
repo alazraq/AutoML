@@ -73,47 +73,31 @@ X.tail()
 Looking at consecutive NaNs:
 
 ```python
-df = pd.DataFrame(np.ones(417599),
-                  index = pd.date_range(start='2013-03-17 00:01:00', end='2013-12-31 23:59:00', freq='1min'), 
-                  columns=["full"])
+# df = pd.DataFrame(np.ones(417599),
+#                   index = pd.date_range(start='2013-03-17 00:01:00', end='2013-12-31 23:59:00', freq='1min'), 
+#                   columns=["full"])
 
-df.loc[X.index, "X"] = 1
-df.X.fillna(0, inplace=True)
+# df.loc[X.index, "X"] = 1
+# df.X.fillna(0, inplace=True)
 ```
 
 ```python
-df["diff"] = (df.full - df.X)
+# df["diff"] = (df.full - df.X)
 ```
 
 ```python
-df["diff"].value_counts()
+# df["diff"].value_counts()
 ```
 
 ```python
-df['consecutive'] = df["diff"].groupby((df["diff"] != df["diff"].shift()).cumsum()).transform('size') * df["diff"]
+# df['consecutive'] = df["diff"].groupby((df["diff"] != df["diff"].shift()).cumsum()).transform('size') * df["diff"]
 ```
 
 ```python
-df["consecutive"].value_counts()
-```
-
-```python
-df.drop([pd.to_datetime("2013-10-27"), pd.to_datetime("2013-10-28")])
-```
-
-```python
-
+# df["consecutive"].value_counts()
 ```
 
 ## Modeling
-
-```python
-df.loc[df["consecutive"]==59].head()
-```
-
-```python
-X.loc["2013-07-13 23:39:00":"2013-07-14 00:53:00"]
-```
 
 ```python
 x_train, x_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=49)
@@ -132,7 +116,7 @@ def nilm_metric(y_true, y_pred):
 ```
 
 ```python
-xgb_reg = xgb.XGBRegressor(max_depth=10, learning_rate=0.1, n_estimators=500, random_state=42)
+xgb_reg = xgb.XGBRegressor(max_depth=10, learning_rate=0.1, n_estimators=100, random_state=42)
 
 xgb_reg.fit(x_train, y_train,
             eval_set=[(x_val, y_val)],
@@ -142,14 +126,23 @@ xgb_reg.fit(x_train, y_train,
 ```
 
 ```python
-y_pred = xgb_reg.predict(x_val)   
+def plot_pred(true, pred):
+    sns.set(rc={'figure.figsize':(8, 8)})
+    ax = sns.scatterplot(x=true, y=pred)
+    ax.set(xlabel='true', ylabel='predicted', xlim=(-5, 250), ylim=(-60, 250))
+    plt.show()
 ```
 
 ```python
-sns.set(rc={'figure.figsize':(6, 6)})
-ax = sns.scatterplot(x=y_val.fridge_freezer, y=y_pred)
-ax.set(xlabel='true', ylabel='predicted')
-plt.show()
+pred_val = xgb_reg.predict(x_val)
+true = y_val.fridge_freezer
+plot_pred(true, pred_val)
+```
+
+```python
+pred = xgb_reg.predict(x_train)
+true = y_train.fridge_freezer
+plot_pred(true, pred)
 ```
 
 ```python
@@ -176,7 +169,7 @@ plt.show()
 ### Evaluating Performance
 
 ```python
-pred = pd.DataFrame(y_pred, columns=["fridge_freezer"])
+pred = pd.DataFrame(pred_val, columns=["fridge_freezer"])
 ```
 
 ```python
@@ -232,4 +225,25 @@ pred = pd.concat([time, pred], axis=1)
 
 ```python
 pred.to_csv("fridge_freezer.csv", index=False)
+```
+
+```python
+x = pd.DataFrame({'B': np.ones(100)})
+x
+```
+
+```python
+(x['B'].rolling(15).sum().values + x['B'].rolling(15).sum().shift(-15).values) / 30
+```
+
+```python
+x['mean_31'] = (x['B'].rolling(15).sum() + x['B'].rolling(15).sum().shift(-15)) / 31.
+```
+
+```python
+x["mean_31"]
+```
+
+```python
+
 ```
