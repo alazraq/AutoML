@@ -245,11 +245,11 @@ For all these reasons, we thought it would be relevant to **add some features to
 We define two pipelines for the input dataset, one for each ML approach we attempted to make data compatible with. 
 
 
-### 1. Pipeline adapted to XGBoost
+### 1. Pipelines adapted to XGBoost
 
 ```python
 class XPipeline_XGB:
-    """Pipeline for input dataset of xgboost model"""
+    """Pipeline for the features of the input dataset of xgboost model"""
     def __init__(self):
         self.pipeline = Pipeline([
             ('DataImputer', DataImputer()),
@@ -262,32 +262,79 @@ class XPipeline_XGB:
 
     def transform(self, x):
         return self.pipeline.transform(x)
+    
+class YPipeline_XGB:
+    """Pipeline for the target of the input dataset of xgboost model"""
+    def __init__(self):
+        self.pipeline = Pipeline([
+            ('YImputer', YImputer()),
+        ])
+
+    def fit(self, x):
+        return self.pipeline.fit(x)
+
+    def transform(self, x):
+        return self.pipeline.transform(x)
 ```
 
 There are three steps in this pipeline:
 
 
-- A DataImputer that drops the unuseful columns, interpolates missing values linearly and sets the date as the index
+- A DataImputer and YImputer that drop the unuseful columns, drop days where we have more than one successive hour of missing data, interpolate missing values linearly for the rest and sets the date as the index.
+
+
+# <font color='red'>TODO adapt to new data imputer of Leo</font>
 
 ```python
 class DataImputer(BaseEstimator, TransformerMixin):  
-    
+
     def __init__(self):
         self.X = None
 
     def fit(self, x, y=None):
+        self.days_to_drop = ["2013-10-27", "2013-10-28", "2013-12-18", "2013-12-19",
+                             "2013-08-01", "2013-08-02", "2013-11-10", "2013-07-07",
+                             "2013-09-07", "2013-03-30", "2013-07-14"]
         return self
 
     def transform(self, x, y=None):
+        x.index = pd.to_datetime(x.index)
+
         try:
             x.drop(['Unnamed: 9', 'visibility', 'humidity', 'humidex', 'windchill', 'wind', 'pressure'],
                    axis=1, 
                    inplace=True)
+            for day in self.days_to_drop:
+                x.drop(x.loc[day].index, inplace=True)
         except KeyError as e:
             pass
+
         x = x.interpolate(method='linear').fillna(method='bfill')
-        x.index = pd.to_datetime(x.index)
         return x
+    
+class YImputer(BaseEstimator, TransformerMixin):
+    
+    def __init__(self):
+        pass
+
+    def fit(self, x, y=None):
+        return self
+    
+    def transform(self, x, y=None):
+        x.index = pd.to_datetime(x.index)
+        try:
+            x.drop(['kettle', 'TV', 'washing_machine'], axis=1, inplace=True)
+        except KeyError as e:
+            pass
+        days_to_drop = ["2013-10-27", "2013-10-28", "2013-12-18", "2013-12-19", 
+                "2013-08-01", "2013-08-02", "2013-11-10", "2013-07-07", 
+                "2013-09-07", "2013-03-30", "2013-07-14"]
+        
+        for day in days_to_drop:
+            x.drop(x.loc[day].index, inplace=True)
+        x = x.interpolate(method='linear').fillna(method='bfill')
+        return x
+
 ```
 
 - A standard scaler that standardizes features by removing the mean and scaling to unit variance and returns them as a dataframe
@@ -315,11 +362,11 @@ class MyStandardScaler(BaseEstimator, TransformerMixin):
 - A Data Augmenter for feature engineering. We implemented a different data augmenter for each appliance, we inspect those in detail in the following section.
 
 
-### 2. Pipeline adapted to RNN
+### 2. Pipelines adapted to RNN
 
 ```python
 class XPipeline_RNN:
-    """Pipeline for input dataset of RNN"""
+    """Pipeline for the features of input dataset of RNN"""
     def __init__(self):
         self.pipeline = Pipeline([
             ('DataImputer', DataImputer()),
@@ -334,9 +381,23 @@ class XPipeline_RNN:
 
     def transform(self, x):
         return self.pipeline.transform(x)
+    
+class YPipeline_RNN:
+    """Pipeline for target of input dataset of RNN"""
+    def __init__(self):
+        self.pipeline = Pipeline([
+            ('YImputer', YImputer()),
+            ('RNNDataFormatter', RNNDataFormatter())
+        ])
+
+    def fit(self, x):
+        return self.pipeline.fit(x)
+
+    def transform(self, x):
+        return self.pipeline.transform(x)
 ```
 
-This pipeline is similar to the previous one, we only add two additional steps to make data compatible with RNN:
+These pipelines are similar to the previous ones, we only add two additional steps to make data compatible with RNN:
 
 
 - A One Hot Encoder for the categorical features (hours, weekdays and months)
@@ -627,9 +688,97 @@ For the kettle, we add two features is_breafast (5 am to 9 am) and is_teatime (4
 
 ## Second approach: ensemble methods - Boosting
 
-```python
 
+For our second attempt, we tried fitting four different regressors - one for each appliance. We chose **XGBoost** which has been used to win many data challenges outperforming several other well-known implementations of gradient tree boosting. 
+
+
+1. We load the data preprocess it using the pipeline XPipeline_XGB defined in section 3
+
+```python
+# Load data and set time_step as index
+X_train = pd.read_csv(
+    '../provided_data_and_metric/X_train_6GWGSxz.csv',
+)
+X_train.set_index("time_step", inplace=True)
+Y_train = pd.read_csv(
+    '../provided_data_and_metric/y_train_2G60rOL.csv',
+)
+Y_train.set_index("time_step", inplace=True)
+X_test = pd.read_csv(
+    '../provided_data_and_metric/X_test_c2uBt2s.csv',
+)
+X_test.set_index("time_step", inplace=True)
+
+# Apply XPipeline_XGB and YPipeline_XGB define above 
+px = XPipeline_XGB()
+py = YPipeline_XGB()
+print('Start of first transform')
+X = px.fit(X_train)
+X = px.transform(X_train)
+print('End of first transform')
+print('Start of second transform')
+y = py.fit(Y_train)
+y = py.transform(Y_train)
+print('End of second transform')
 ```
+
+2. We split the data into train and test datasets
+
+```python
+x_train, x_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=49)
+```
+
+3. We define custum nilm metric based on the metric provided, but for the individual appliance
+
+```python
+# Custom nilm metric in case of fridge for example
+def nilm_metric(y_true, y_pred):
+        score = math.sqrt(sum((y_pred.get_label() - y_true) ** 2) / len(y_true)) * 49.79
+        score /= 74.86
+        return "nilm", score
+```
+
+4. Fit the model and look at the most important features
+
+```python
+# Fitting an XGBoost regressor
+xgb_reg = xgb.XGBRegressor(max_depth=10, learning_rate=0.1, n_estimators=100, random_state=42)
+
+xgb_reg.fit(x_train, y_train,
+            eval_set=[(x_val, y_val)],
+            eval_metric=nilm_metric,
+           )
+
+# Feature importance
+importances = xgb_reg.feature_importances_
+indices = np.argsort(importances)[::-1]
+indices = indices[:15]
+print("Feature ranking:")
+for f in range(len(indices)):
+    print("%d. %s (%f)" % (f + 1, X.columns[indices[f]], importances[indices[f]]))
+```
+
+5. Evaluate performance
+
+```python
+# Plotting true value vs prediction
+def plot_pred(true, pred):
+    sns.set(rc={'figure.figsize':(8, 8)})
+    ax = sns.scatterplot(x=true, y=pred)
+    ax.set(xlabel='true', ylabel='predicted', xlim=(-5, 250), ylim=(-60, 250))
+    plt.show()
+    
+pred_val = xgb_reg.predict(x_val)
+true = y_val.fridge_freezer
+plot_pred(true, pred_val)
+
+# Performance using custom nilm metric
+plt.bar(range(len(indices)), importances[indices], color="r", align="center")
+nilm_metric(y_val, pred)
+```
+
+# <font color='red'>TODO add tuning when done</font>
+
 
 ## Results and benchmark
 
