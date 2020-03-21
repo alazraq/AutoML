@@ -37,7 +37,7 @@ by Guillaume Le Fur, Abderrahmane Lazraq and Leonardo Natale
 
 The objective of this project is to put the Machine Learning methods that we've been taugh during this course into practice, on a real data set, the "Smart meter is coming" challenge.
 
-We will start by introducing our exploratory data analysis and what first conclusions we could draw from it. Then, we'll detail the data pre-processing and feature engineering we've done, and ustify their interest.
+We will start by introducing our exploratory data analysis and what first conclusions we could draw from it. Then, we'll detail the data pre-processing and feature engineering we've done, and justify their interest.
 
 Finally, we'll present the results we had using two methods : Deep learning (with RNNs) and Boosting (with XGboost).
 
@@ -230,7 +230,7 @@ From the plot above, we can extract the following informations:
 Y_train.groupby(X_data_exploration.is_holidays).mean()
 ```
 
-**People don't use their wshing machine on holidays, nor their kettle**. This makes sense becasue when people leave the house, thei appliances that consume a lot of electricity when used aren't used any longer so they stop consuming, while the appliances that consume an almost constant amount of electricity don't vary much because they keep working.
+**People don't use their washing machine on holidays, nor their kettle**. This makes sense becasue when people leave the house, thei appliances that consume a lot of electricity when used aren't used any longer so they stop consuming, while the appliances that consume an almost constant amount of electricity don't vary much because they keep working.
 
 
 For all these reasons, we thought it would be relevant to **add some features to the data**, to be able to predict the per-appliance consumption with more accuracy. This will be detailed further in this report.
@@ -242,13 +242,14 @@ For all these reasons, we thought it would be relevant to **add some features to
 ## Data preprocessing
 
 
-We define two pipelines for the input dataset, one for each ML approach we attempted to make data compatible with it. 
+We define two pipelines for the input dataset, one for each ML approach we attempted to make data compatible with. 
 
 
 ### 1. Pipeline adapted to XGBoost
 
 ```python
 class XPipeline_XGB:
+    """Pipeline for input dataset of xgboost model"""
     def __init__(self):
         self.pipeline = Pipeline([
             ('DataImputer', DataImputer()),
@@ -263,14 +264,14 @@ class XPipeline_XGB:
         return self.pipeline.transform(x)
 ```
 
-There are three steps in our pipeline:
+There are three steps in this pipeline:
 
 
 - A DataImputer that drops the unuseful columns, interpolates missing values linearly and sets the date as the index
 
 ```python
 class DataImputer(BaseEstimator, TransformerMixin):  
-
+    
     def __init__(self):
         self.X = None
 
@@ -289,7 +290,7 @@ class DataImputer(BaseEstimator, TransformerMixin):
         return x
 ```
 
-- A standard scaler that standardizes features by removing the mean and scaling to unit variance
+- A standard scaler that standardizes features by removing the mean and scaling to unit variance and returns them as a dataframe
 
 ```python
 class MyStandardScaler(BaseEstimator, TransformerMixin):  
@@ -311,14 +312,14 @@ class MyStandardScaler(BaseEstimator, TransformerMixin):
         return X
 ```
 
-- A Data Augmenter for feature engineering. There is a different data augmenter for each appliance, we inspect those in detail in the following section.
+- A Data Augmenter for feature engineering. We implemented a different data augmenter for each appliance, we inspect those in detail in the following section.
 
 
 ### 2. Pipeline adapted to RNN
 
 ```python
 class XPipeline_RNN:
-
+    """Pipeline for input dataset of RNN"""
     def __init__(self):
         self.pipeline = Pipeline([
             ('DataImputer', DataImputer()),
@@ -335,7 +336,7 @@ class XPipeline_RNN:
         return self.pipeline.transform(x)
 ```
 
-We only add two additional steps to make data compatible with RNN:
+This pipeline is similar to the previous one, we only add two additional steps to make data compatible with RNN:
 
 
 - A One Hot Encoder for the categorical features (hours, weekdays and months)
@@ -375,7 +376,7 @@ class MyOneHotEncoder(BaseEstimator, TransformerMixin):
         return X
 ```
 
-- A data formatter to produce batches dor RNN, 60 observations per batch (1 hour of observations) seemed like a reasonable choice
+- A data formatter to produce batches for RNN, 60 observations per batch (1 hour of observations) seemed like a reasonable choice
 
 ```python
 class RNNDataFormatter(BaseEstimator, TransformerMixin):
@@ -404,21 +405,215 @@ class RNNDataFormatter(BaseEstimator, TransformerMixin):
 ##  Feature engineering by appliance
 
 
-For each appliance we produced additional features that aim at increasing the predictive power of the machine learning algorithms used by creating features from the raw data that help facilitate the machine learning process for that specific appliance. 
+For each appliance we produced additional features that aim at increasing the predictive power of the machine learning algorithms used by creating features from the raw data that help facilitate the machine learning process for that specific appliance. These include weekday, is_weekend and is_holidays which accounts for French national holidays.
 
 The most important features that we identified to transform the time series forecasting problem into a supervised learning problem are the lag features and the rolling mean. Here we focus on the different lags and rolling means used for each appliance, as well as other features specific to each appliance.
 
 
+# <font color='red'>TODO: update data augmenters after Leo finishes and comment on them </font>
+
+
 ### 1. Washing machine
 
+```python
+class DataAugmenter_Washing_Machine(BaseEstimator, TransformerMixin):
+
+    def __init__(self):
+        pass
+
+    def fit(self, x, y=None):
+        return self
+
+    def transform(self, x, y=None):
+        fr_holidays = holidays.France()
+        x["weekday"] = x.index.dayofweek
+        x["month"] = x.index.month
+        x["hour"] = x.index.hour
+        x["is_weekend"] = (x["weekday"] > 4) * 1
+        x["is_holidays"] = (x.index.to_series().apply(lambda t: t in fr_holidays)) * 1
+
+        x["is_TVtime"] = ((x.hour > 17) & (x.hour < 23)) * 1
+        # X_train["is_working_hour"] = ((X_train.hour>7) & (X_train.hour<19))*1
+        x["is_night"] = ((x.hour > 0) & (x.hour < 7)) * 1
+        
+        x['lag_1'] = x['consumption'].shift(1)
+        x['lag_5'] = x['consumption'].shift(5)
+        x['lag_10'] = x['consumption'].shift(10)
+        x['lag_20'] = x['consumption'].shift(20)
+        x['lag_25'] = x['consumption'].shift(25)
+        x['lag_30'] = x['consumption'].shift(30)
+        x['lag_35'] = x['consumption'].shift(35)
+        x['lag_40'] = x['consumption'].shift(40)
+
+        x['lag_future_1'] = x['consumption'].shift(-1)
+        x['lag_future_5'] = x['consumption'].shift(-5)
+        x['lag_future_10'] = x['consumption'].shift(-10)
+        x['lag_future_20'] = x['consumption'].shift(-20)
+        x['lag_future_25'] = x['consumption'].shift(-25)
+        x['lag_future_30'] = x['consumption'].shift(-30)
+        x['lag_future_35'] = x['consumption'].shift(-35)
+        x['lag_future_40'] = x['consumption'].shift(-40)
+
+        x['rolling_mean_10'] = x['consumption'].rolling(window=10).mean()
+        x['rolling_mean_20'] = x['consumption'].rolling(window=20).mean()
+        x = x.ffill().bfill()
+        
+        return x
+
+```
 
 ### 2. Fridge/ Freezer
+
+```python
+class DataAugmenter_Fridge(BaseEstimator, TransformerMixin):
+
+    def __init__(self):
+        pass
+
+    def fit(self, x, y=None):
+        return self
+
+    def transform(self, x, y=None):
+        fr_holidays = holidays.France()
+        x["weekday"] = x.index.dayofweek
+        x["month"] = x.index.month
+        x["hour"] = x.index.hour
+        x["is_weekend"] = (x["weekday"] > 4) * 1
+        x["is_holidays"] = (x.index.to_series().apply(lambda t: t in fr_holidays)) * 1
+
+        x["is_TVtime"] = ((x.hour > 17) & (x.hour < 23)) * 1
+        # X_train["is_working_hour"] = ((X_train.hour>7) & (X_train.hour<19))*1
+        x["is_night"] = ((x.hour > 0) & (x.hour < 7)) * 1
+        
+        x['lag_1'] = x['consumption'].shift(1)
+        x['lag_5'] = x['consumption'].shift(5)
+        x['lag_10'] = x['consumption'].shift(10)
+        x['lag_20'] = x['consumption'].shift(20)
+        x['lag_25'] = x['consumption'].shift(25)
+        x['lag_30'] = x['consumption'].shift(30)
+        x['lag_35'] = x['consumption'].shift(35)
+        x['lag_40'] = x['consumption'].shift(40)
+
+        x['lag_future_1'] = x['consumption'].shift(-1)
+        x['lag_future_5'] = x['consumption'].shift(-5)
+        x['lag_future_10'] = x['consumption'].shift(-10)
+        x['lag_future_20'] = x['consumption'].shift(-20)
+        x['lag_future_25'] = x['consumption'].shift(-25)
+        x['lag_future_30'] = x['consumption'].shift(-30)
+        x['lag_future_35'] = x['consumption'].shift(-35)
+        x['lag_future_40'] = x['consumption'].shift(-40)
+
+        x['rolling_mean_10'] = x['consumption'].rolling(window=10).mean()
+        x['rolling_mean_20'] = x['consumption'].rolling(window=20).mean()
+        x = x.ffill().bfill()
+        
+        return x
+```
+
+In the case of the fridge/ freezer, we decided to keep a lags of the consumption 40 min in the past and into the future because 40 minutes is usually the time of consecutive activity on average when the fridge is open (as opposed to the kettle for example which only has 2 min of consecutive activity on average).
+
+We also decided to add two rolling means one over a window of 10 min and the other over 20 min.
+
+
+# <font color='red'>TODO adapt based on we are able to see this behaviour in EDA</font>
 
 
 ### 3. TV
 
+```python
+class DataAugmenter(BaseEstimator, TransformerMixin):
+
+    def __init__(self):
+        pass
+
+    def fit(self, x, y=None):
+        return self
+
+    def transform(self, x, y=None):
+        fr_holidays = holidays.France()
+        x["weekday"] = x.index.dayofweek
+        x["month"] = x.index.month
+        x["hour"] = x.index.hour
+        x["is_weekend"] = (x["weekday"] > 4) * 1
+        x["is_holidays"] = (x.index.to_series().apply(lambda t: t in fr_holidays)) * 1
+
+        x["is_TVtime"] = ((x.hour > 17) & (x.hour < 23)) * 1
+        # X_train["is_working_hour"] = ((X_train.hour>7) & (X_train.hour<19))*1
+        x["is_night"] = ((x.hour > 0) & (x.hour < 7)) * 1
+        
+        x['lag_1'] = x['consumption'].shift(1)
+        x['lag_5'] = x['consumption'].shift(5)
+        x['lag_10'] = x['consumption'].shift(10)
+        x['lag_20'] = x['consumption'].shift(20)
+        x['lag_25'] = x['consumption'].shift(25)
+        x['lag_30'] = x['consumption'].shift(30)
+        x['lag_35'] = x['consumption'].shift(35)
+        x['lag_40'] = x['consumption'].shift(40)
+
+        x['lag_future_1'] = x['consumption'].shift(-1)
+        x['lag_future_5'] = x['consumption'].shift(-5)
+        x['lag_future_10'] = x['consumption'].shift(-10)
+        x['lag_future_20'] = x['consumption'].shift(-20)
+        x['lag_future_25'] = x['consumption'].shift(-25)
+        x['lag_future_30'] = x['consumption'].shift(-30)
+        x['lag_future_35'] = x['consumption'].shift(-35)
+        x['lag_future_40'] = x['consumption'].shift(-40)
+
+        x['rolling_mean_10'] = x['consumption'].rolling(window=10).mean()
+        x['rolling_mean_20'] = x['consumption'].rolling(window=20).mean()
+        x = x.ffill().bfill()
+        
+        return x
+```
+
+For the TV, we add a feature is_TVtime, which indicates that the hour is between 5pm and 11pm; supposedly the time most people watch TV.
+
 
 ### 4. Kettle
+
+```python
+class DataAugmenter_kettle(BaseEstimator, TransformerMixin):
+
+    def __init__(self):
+        pass
+
+    def fit(self, x, y=None):
+        return self
+
+    def transform(self, x, y=None):
+        fr_holidays = holidays.France()
+        x["weekday"] = x.index.dayofweek
+        x["month"] = x.index.month
+        x["hour"] = x.index.hour
+        x["is_weekend"] = (x["weekday"] > 4) * 1
+        x["is_holidays"] = (x.index.to_series().apply(lambda t: t in fr_holidays)) * 1
+
+        x["is_breakfast"] = ((x.hour > 5) & (x.hour < 9)) * 1
+        x["is_teatime"] = ((x.hour > 16) & (x.hour < 20)) * 1
+        
+        x['lag_1'] = x['consumption'].shift(1)
+        x['lag_2'] = x['consumption'].shift(2)
+        x['lag_3'] = x['consumption'].shift(3)
+        x['lag_4'] = x['consumption'].shift(4)
+        x['lag_5'] = x['consumption'].shift(5)
+        x['lag_10'] = x['consumption'].shift(10)
+        x['lag_20'] = x['consumption'].shift(20)
+
+        x['lag_future_1'] = x['consumption'].shift(-1)
+        x['lag_future_2'] = x['consumption'].shift(-2)
+        x['lag_future_3'] = x['consumption'].shift(-3)
+        x['lag_future_4'] = x['consumption'].shift(-4)
+        x['lag_future_5'] = x['consumption'].shift(-5)
+        x['lag_future_10'] = x['consumption'].shift(-10)
+        x['lag_future_20'] = x['consumption'].shift(-20)
+
+        x['rolling_mean'] = x['consumption'].rolling(window=3).mean()
+        x = x.ffill().bfill()
+        
+        return x
+```
+
+For the kettle, we add two features is_breafast (5 am to 9 am) and is_teatime (4 pm to 20 pm) which indicate the two periods of time people use the kettle the most.
 
 
 # <font color='red'>TODO Should we add MultiOutputRegressor + Random Forests as our baseline?</font>
