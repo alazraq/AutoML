@@ -6,7 +6,7 @@ jupyter:
       extension: .md
       format_name: markdown
       format_version: '1.2'
-      jupytext_version: 1.4.0
+      jupytext_version: 1.3.3
   kernelspec:
     display_name: Python 3
     language: python
@@ -34,15 +34,207 @@ by Guillaume Le Fur, Abderrahmane Lazraq and Leonardo Natale
 
 ## Introduction: objectives and methodology
 
-```python
 
-```
+The objective of this project is to put the Machine Learning methods that we've been taugh during this course into practice, on a real data set, the "Smart meter is coming" challenge.
+
+We will start by introducing our exploratory data analysis and what first conclusions we could draw from it. Then, we'll detail the data pre-processing and feature engineering we've done, and ustify their interest.
+
+Finally, we'll present the results we had using two methods : Deep learning (with RNNs) and Boosting (with XGboost).
+
+You will be able to find the entirety of the code on the following [GitHub repository](https://github.com/alazraq/AutoML). Not all the code will be detailed here but rather the most important parts.
+
+# <font color='red'>TODO data description</font>
+
 
 ## Exploratory Data Analysis
 
-```python
 
+### Global vs. per appliance consumption
+
+
+First of all, if we denote by $\mathcal A$ the ensemble of appliances, $c_a$ the consumption of appliance $a \in \mathcal A$ and $c_{tot}$ the total consumption, it is important to emphasize the fact that, for each timestamp, we don't have : 
+
+$$\sum_{a \in A} c_a = c_{tot}$$
+
+We can clearly see this on the following plot.
+
+```python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 ```
+
+```python
+X_train = pd.read_csv(
+    '../provided_data_and_metric/X_train_6GWGSxz.csv',
+)
+X_train.set_index("time_step", inplace=True)
+X_train.index = pd.to_datetime(X_train.index)
+Y_train = pd.read_csv(
+    '../provided_data_and_metric/y_train_2G60rOL.csv',
+)
+Y_train.set_index("time_step", inplace=True)
+Y_train.index = pd.to_datetime(Y_train.index)
+```
+
+```python
+X_weekly = X_train.iloc[:, :1].resample('W').mean()
+Y_weekly = Y_train.resample('W').mean()
+T_weekly = X_weekly.join(Y_weekly, on='time_step')
+
+f,ax = plt.subplots(figsize=(15,8))
+
+ax.plot(T_weekly.index, T_weekly[['consumption']], label='consumption', color='black')
+ax.stackplot(
+    T_weekly.index.values,
+    T_weekly[['washing_machine', 'fridge_freezer', 'TV', 'kettle']].values.T,
+    labels=T_weekly.columns[1:]
+)
+ax.set_ylim([0, 700])
+ax.legend(loc='upper right')
+ax.set_xlabel("Time")
+ax.set_ylabel("Consumption")
+ax.set_title("Weekly average of every appliance and total consumption.")
+f.canvas.draw()
+```
+
+But this plot is not precise enough. Instead, if we look at the daily moving average over 7 days, we have :
+
+```python
+X_daily = X_train.iloc[:, :1].resample('D').mean()
+Y_daily = Y_train.resample('D').mean()
+X_daily['mv_consumption'] = X_daily['consumption'].rolling(7).mean()
+Y_daily = Y_daily.rolling(7).mean()
+T_daily = X_daily.join(Y_daily, on='time_step')
+
+f,ax = plt.subplots(figsize=(15,8))
+
+ax.plot(T_daily.index, T_daily[['mv_consumption']], label='consumption', color='black')
+ax.stackplot(
+    T_daily.index.values,
+    T_daily[['washing_machine', 'fridge_freezer', 'TV', 'kettle']].values.T,
+    labels=T_daily.columns[1:]
+)
+ax.set_ylim([0, 700])
+ax.set_xlabel("Time")
+ax.set_ylabel("Consumption")
+ax.set_title("Daily moving average over 7 days of every appliance and total consumption.")
+ax.legend(loc='upper left')
+f.canvas.draw()
+```
+
+On the graph above, we can clearly see that the overall consumption trend does not correspond to any per-appliance trend. Indeed, we can observe two sharp declines (one around 2013-04-15, and another around 2013-08-10) that lead to an opposite effect on the per-appliance trends (on the first one, the per-appliance average drops, and on the second it raises). This makes it even harder to predict the per-appliance consumption as there is no clear link between them and the overall consumption.
+
+The difference between the consumtions can most probably be explained by the presence of other appliances in the house.
+
+This means that predicting the value of the appliance and it's percentage of the consumption is not the same problem.
+
+
+Now let's have a look at some specificities of the data.
+
+
+### Analysis of the predictors
+
+```python
+import holidays
+
+def add_features(x):
+    x = x.drop(
+        ['Unnamed: 9', 'visibility', 'humidity', 'humidex', 'windchill', 'wind', 'pressure', 'temperature'],
+        axis=1
+    )
+    fr_holidays = holidays.France()
+    x["weekday"] = x.index.dayofweek
+    x["month"] = x.index.month
+    x["hour"] = x.index.hour
+    x["is_weekend"] = (x["weekday"] > 4) * 1
+    x["is_holidays"] = (x.index.to_series().apply(lambda t: t in fr_holidays)) * 1
+
+    x["is_breakfast"] = ((x.hour > 5) & (x.hour < 9)) * 1
+    x["is_teatime"] = ((x.hour > 16) & (x.hour < 20)) * 1
+    x["is_TVtime"] = ((x.hour > 17) & (x.hour < 23)) * 1
+    # X_train["is_working_hour"] = ((X_train.hour>7) & (X_train.hour<19))*1
+    x["is_night"] = ((x.hour > 0) & (x.hour < 7)) * 1
+    return x
+X_data_exploration = add_features(X_train)
+```
+
+```python
+X_data_exploration[["consumption", "is_weekend"]].groupby("is_weekend").mean()
+```
+
+The overall consumption is **higher during the weekend**, as expected.
+
+```python
+X_data_exploration[["consumption", "weekday"]].groupby("weekday").mean().plot()
+```
+
+The consumption is also really **high on tuesday**. We couldn't find any justification for this
+
+```python
+X_data_exploration[["consumption", "month"]].groupby("month").mean().plot()
+```
+
+The consumption is **higher during *cold* months** (October to February). This might be due to the heating system which works more in winter than in summer.
+
+```python
+X_data_exploration[["consumption", "hour"]].groupby("hour").mean().plot()
+```
+
+The hourly consumption is quite interesting. Indeed, we can see that most of the consumption is done **after 4 p.m.**, which is after the end of *office hours*, when people are back home, and **before 11 p.m.**, when people go to sleep. There are also two smaller *peaks*, suring **breakfast** and **luch time**.
+
+```python
+X_data_exploration[["consumption", "is_holidays"]].groupby("is_holidays").mean()
+```
+
+The consumption is **higher during the holidays**. Our analysis led us to believe that the data was coming from a **house located in France** because the data was fitting better the holidays in France than the ones in the UK or in the US.
+
+
+### Analysis of the response variables
+
+```python
+Y_train.groupby(X_data_exploration.weekday).mean()
+```
+
+We can see that people tend to use their **washing machine more on Sundays**, which is logical because they have more time on Sundays and **electricity is cheaper**. If we consider, as we did, that the houseis in France, people most likely beneficiate from the *Heures Creuses* rate.
+
+```python
+Y_data_exploration.groupby(X_data_exploration.month).mean()
+```
+
+```python
+Y_data_exploration.groupby(X_data_exploration.month).mean().plot()
+```
+
+We detect a significant increase of the use of the **Kettle in November**, which also makes sense because it's one of the first 'cold' months so people strat making tea again to warm themselves.
+
+```python
+Y_train.groupby(X_data_exploration.is_weekend).mean()
+```
+
+Once again, the use of the **washing machine on the weekend** is confirmed here. People tend to use their **kettle a bit more** as well. **We could have expected the consumption of the TV to be higher** on the weekend but it actually isn't.
+
+```python
+Y_train.groupby(X_data_exploration.hour).mean().plot()
+```
+
+From the plot above, we can extract the following informations:
+    
+- People use their **TV in the morning**, really early, **and in the evening**, but not much after 11 p.m., after the main movie has finished.
+- People use their **kettle around teatime**, which is quite logical, but also a bit in the morining, **for breakfast**.
+- The consumption fo the **freezer doesn't vary much** during the day.
+- People tend to turn their **washing machine on when they go to bed**, once again for the **cost of electricity**.
+
+```python
+Y_train.groupby(X_data_exploration.is_holidays).mean()
+```
+
+**People don't use their wshing machine on holidays, nor their kettle**. This makes sense becasue when people leave the house, thei appliances that consume a lot of electricity when used aren't used any longer so they stop consuming, while the appliances that consume an almost constant amount of electricity don't vary much because they keep working.
+
+
+For all these reasons, we thought it would be relevant to **add some features to the data**, to be able to predict the per-appliance consumption with more accuracy. This will be detailed further in this report.
+
 
 ## Data preprocessing
 
@@ -54,7 +246,6 @@ We define two pipelines for the input dataset, one for each ML approach we attem
 
 ```python
 class XPipeline_XGB:
-
     def __init__(self):
         self.pipeline = Pipeline([
             ('DataImputer', DataImputer()),
