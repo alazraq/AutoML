@@ -176,7 +176,7 @@ The consumption is also really **high on tuesday**. We couldn't find any justifi
 X_data_exploration[["consumption", "month"]].groupby("month").mean().plot()
 ```
 
-The consumption is **higher during *cold* months** (October to February). This might be due to the heating system which works more in winter than in summer.
+The consumption is **higher during *cold months*** (October to February). This might be due to the **heating system** which works more in winter than in summer.
 
 ```python
 X_data_exploration[["consumption", "hour"]].groupby("hour").mean().plot()
