@@ -236,6 +236,9 @@ Y_train.groupby(X_data_exploration.is_holidays).mean()
 For all these reasons, we thought it would be relevant to **add some features to the data**, to be able to predict the per-appliance consumption with more accuracy. This will be detailed further in this report.
 
 
+# <font color='red'>TODO add other plots</font>
+
+
 ## Data preprocessing
 
 
@@ -416,6 +419,9 @@ The most important features that we identified to transform the time series fore
 
 
 ### 4. Kettle
+
+
+# <font color='red'>TODO Should we add MultiOutputRegressor + Random Forests as our baseline?</font>
 
 
 ## First approach: deep learning
