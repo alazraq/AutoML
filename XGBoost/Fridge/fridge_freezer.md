@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns; sns.set()
+import seaborn as sns
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
@@ -19,15 +19,15 @@ from y_pipeline import YPipeline
 
 ```python
 X_train = pd.read_csv(
-    '../provided_data_and_metric/X_train_6GWGSxz.csv',
+    '../../provided_data_and_metric/X_train_6GWGSxz.csv',
 )
 X_train.set_index("time_step", inplace=True)
 Y_train = pd.read_csv(
-    '../provided_data_and_metric/y_train_2G60rOL.csv',
+    '../../provided_data_and_metric/y_train_2G60rOL.csv',
 )
 Y_train.set_index("time_step", inplace=True)
 X_test = pd.read_csv(
-    '../provided_data_and_metric/X_test_c2uBt2s.csv',
+    '../../provided_data_and_metric/X_test_c2uBt2s.csv',
 )
 X_test.set_index("time_step", inplace=True)
 
@@ -195,7 +195,7 @@ plt.show()
 
 ```python
 X_test = pd.read_csv(
-    '../provided_data_and_metric/X_test_c2uBt2s.csv',
+    '../../provided_data_and_metric/X_test_c2uBt2s.csv',
 )
 time = X_test["time_step"]
 X_test.set_index("time_step", inplace=True)
@@ -225,6 +225,10 @@ pred = pd.concat([time, pred], axis=1)
 
 ```python
 pred.to_csv("fridge_freezer.csv", index=False)
+```
+
+```python
+
 ```
 
 ```python

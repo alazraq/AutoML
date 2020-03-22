@@ -24,10 +24,6 @@ Y_train = pd.read_csv(
     '../../provided_data_and_metric/y_train_2G60rOL.csv',
 )
 Y_train.set_index("time_step", inplace=True)
-X_test = pd.read_csv(
-    '../../provided_data_and_metric/X_test_c2uBt2s.csv',
-)
-X_test.set_index("time_step", inplace=True)
 
 px = XPipeline()
 py = YPipeline()
@@ -93,7 +89,7 @@ def nilm_metric(y_true, y_pred):
 ```
 
 ```python
-xgb_reg = xgb.XGBRegressor(max_depth=10, learning_rate=0.1, n_estimators=500, random_state=42)
+xgb_reg = xgb.XGBRegressor(max_depth=10, learning_rate=0.1, n_estimators=100, random_state=42)
 
 xgb_reg.fit(x_train, y_train,
             eval_set=[(x_val, y_val)],
@@ -103,22 +99,23 @@ xgb_reg.fit(x_train, y_train,
 ```
 
 ```python
-y_pred = xgb_reg.predict(x_val)   
+def plot_pred(true, pred):
+    sns.set(rc={'figure.figsize':(8, 8)})
+    ax = sns.scatterplot(x=true, y=pred)
+    ax.set(xlabel='true', ylabel='predicted', xlim=(-5, 3100), ylim=(-60, 3100))
+    plt.show()
 ```
 
 ```python
-pred_big = y_pred[y_pred>500]
-true_big = y_val.kettle[y_pred>500]
-
-ax = sns.scatterplot(x=true_big, y=pred_big)
-ax.set(xlabel='true', ylabel='predicted')
-plt.show()
+pred_val = xgb_reg.predict(x_val)
+true = y_val.kettle
+plot_pred(true, pred_val)
 ```
 
 ```python
-ax = sns.scatterplot(x=y_val.kettle, y=y_pred)
-ax.set(xlabel='true', ylabel='predicted')
-plt.show()
+pred = xgb_reg.predict(x_train)
+true = y_train.kettle
+plot_pred(true, pred)
 ```
 
 ```python

@@ -41,8 +41,19 @@ class DataAugmenter(BaseEstimator, TransformerMixin):
         x['lag_future_35'] = x['consumption'].shift(-35)
         x['lag_future_40'] = x['consumption'].shift(-40)
 
-        x['rolling_mean_10'] = x['consumption'].rolling(window=10).mean()
-        x['rolling_mean_20'] = x['consumption'].rolling(window=20).mean()
+        x['rolling_mean_5'] = x['consumption'].rolling(window=5).mean()
+        x['rolling_mean_15'] = x['consumption'].rolling(window=15).mean()
+        x['rolling_mean_-5'] = x['consumption'].rolling(window=5).mean().shift(-5)
+        x['rolling_mean_-15'] = x['consumption'].rolling(window=15).mean().shift(-15)
+
+        x['rolling_std_5'] = x['consumption'].rolling(window=5).std()
+        x['rolling_std_15'] = x['consumption'].rolling(window=15).std()
+        x['rolling_std_-5'] = x['consumption'].rolling(window=5).std().shift(-5)
+        x['rolling_std_-55'] = x['consumption'].rolling(window=15).std().shift(-15)     
+
+        x['rolling_max_10'] = x['consumption'].rolling(window=10).max()
+#         x['rolling_max_5'] = x['consumption'].rolling(window=10).max()
+        x['rolling_min_10'] = x['consumption'].rolling(window=10).min()
         x = x.ffill().bfill()
         
         return x

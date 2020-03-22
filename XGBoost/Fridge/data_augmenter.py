@@ -37,7 +37,6 @@ class DataAugmenter(BaseEstimator, TransformerMixin):
         x['lag_5'] = x['consumption'].shift(5)
         x['lag_10'] = x['consumption'].shift(10)
         x['lag_20'] = x['consumption'].shift(20)
-
         x['lag_future_1'] = x['consumption'].shift(-1)
         x['lag_future_2'] = x['consumption'].shift(-2)
         x['lag_future_3'] = x['consumption'].shift(-3)
@@ -47,15 +46,15 @@ class DataAugmenter(BaseEstimator, TransformerMixin):
         x['lag_future_20'] = x['consumption'].shift(-20)
 
 #         x['mean_3'] = (x['consumption'].rolling(1).sum().values
-#                        + x['consumption'].rolling(1).sum().shift(-1).values) / 3
+# + x['consumption'].rolling(1).sum().shift(-1).values) / 3
 #         x['mean_5'] = (x['consumption'].rolling(2).sum().values
-#                        + x['consumption'].rolling(2).sum().shift(-2).values) / 5
+# + x['consumption'].rolling(2).sum().shift(-2).values) / 5
 #         x['mean_10'] = (x['consumption'].rolling(5).sum().values
-#                         + x['consumption'].rolling(5).sum().shift(-5).values) / 10
+# + x['consumption'].rolling(5).sum().shift(-5).values) / 10
 #         x['mean_20'] = (x['consumption'].rolling(10).sum().values
-#                         + x['consumption'].rolling(10).sum().shift(-10).values) / 20
+# + x['consumption'].rolling(10).sum().shift(-10).values) / 20
 #         x['mean_30'] = (x['consumption'].rolling(15).sum().values 
-#                         + x['consumption'].rolling(15).sum().shift(-15).values) / 30
+# + x['consumption'].rolling(15).sum().shift(-15).values) / 30
 #         x['mean_41'] = (x['consumption'].rolling(20).sum() + x['consumption'].rolling(20).sum().shift(-20)) / 41
 #         x['mean_61'] = (x['consumption'].rolling(30).sum() + x['consumption'].rolling(30).sum().shift(-30)) / 61
 
@@ -63,12 +62,12 @@ class DataAugmenter(BaseEstimator, TransformerMixin):
         x['rolling_mean_15'] = x['consumption'].rolling(window=15).mean()
         x['rolling_mean_-5'] = x['consumption'].rolling(window=5).mean().shift(-5)
         x['rolling_mean_-15'] = x['consumption'].rolling(window=15).mean().shift(-15)
-        
+
         x['rolling_std_3'] = x['consumption'].rolling(window=3).std()
         x['rolling_std_5'] = x['consumption'].rolling(window=5).std()
         x['rolling_std_-3'] = x['consumption'].rolling(window=3).std().shift(-3)
-        x['rolling_std_-5'] = x['consumption'].rolling(window=5).std().shift(-5)
-        
+        x['rolling_std_-5'] = x['consumption'].rolling(window=5).std().shift(-5)     
+
         x['rolling_max_3'] = x['consumption'].rolling(window=5).max()
 #         x['rolling_max_5'] = x['consumption'].rolling(window=10).max()
         x['rolling_min_3'] = x['consumption'].rolling(window=5).min()
