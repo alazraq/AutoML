@@ -89,13 +89,23 @@ def nilm_metric(y_true, y_pred):
 ```
 
 ```python
-xgb_reg = xgb.XGBRegressor(max_depth=10, learning_rate=0.1, n_estimators=100, random_state=42)
+xgb_reg = xgb.XGBRegressor(max_depth=10, learning_rate=0.01, n_estimators=300, random_state=42)
 
-xgb_reg.fit(x_train, y_train,
-            eval_set=[(x_val, y_val)],
+# xgb_reg.fit(x_train, y_train,
+#             eval_set=[(x_val, y_val)],
+#             eval_metric=nilm_metric,
+# #             early_stopping_rounds=10
+#            )
+
+xgb_reg.fit(X, y,
+            eval_set=[(X, y)],
             eval_metric=nilm_metric,
 #             early_stopping_rounds=10
            )
+```
+
+```python
+xgb_reg.score(x_train, y_train)
 ```
 
 ```python
@@ -110,6 +120,14 @@ def plot_pred(true, pred):
 pred_val = xgb_reg.predict(x_val)
 true = y_val.kettle
 plot_pred(true, pred_val)
+```
+
+```python
+c = 0 
+for i in range(len(pred_val)):
+    if pred_val[i] > 50 and y_val.values[i] < 50:
+        c += 1
+print(c)
 ```
 
 ```python
