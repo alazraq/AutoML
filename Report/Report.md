@@ -6,7 +6,7 @@ jupyter:
       extension: .md
       format_name: markdown
       format_version: '1.2'
-      jupytext_version: 1.4.0
+      jupytext_version: 1.3.3
   kernelspec:
     display_name: Python 3
     language: python
@@ -31,6 +31,12 @@ by Guillaume Le Fur, Abderrahmane Lazraq and Leonardo Natale
 6. Results and benchmark
 7. Conclusion
 
+```python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+```
 
 ## Introduction: objectives and methodology
 
@@ -43,27 +49,8 @@ Finally, we'll present the results we had using two methods : Deep learning (wit
 
 You will be able to find the entirety of the code on the following [GitHub repository](https://github.com/alazraq/AutoML). Not all the code will be detailed here but rather the most important parts.
 
-# <font color='red'>TODO data description</font>
+The data is the following :
 
-
-## Exploratory Data Analysis
-
-
-### Global vs. per appliance consumption
-
-
-First of all, if we denote by $\mathcal A$ the ensemble of appliances, $c_a$ the consumption of appliance $a \in \mathcal A$ and $c_{tot}$ the total consumption, it is important to emphasize the fact that, for each timestamp, we don't have : 
-
-$$\sum_{a \in A} c_a = c_{tot}$$
-
-We can clearly see this on the following plot.
-
-```python
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-```
 
 ```python
 X_train = pd.read_csv(
@@ -77,6 +64,60 @@ Y_train = pd.read_csv(
 Y_train.set_index("time_step", inplace=True)
 Y_train.index = pd.to_datetime(Y_train.index)
 ```
+
+```python
+print(f'Shape of X_train: {X_train.shape}')
+print(f'Shape of Y_train: {Y_train.shape}')
+```
+
+We initially have 9 predictors and 4 variables to predict.
+
+
+## Exploratory Data Analysis
+
+
+### Missing values
+
+Let's have a look at the missing values.
+
+```python
+X_train.isna().sum()
+```
+
+We notice that the weather data is measured every hour, whereas the consumption data is measured every minute, so we have a lot of sparsity fro the weather data. Depending on the algorithm, we'll either try to impute the values (see `DataImputer` classes), or discard the weather data because we think it's not relevant.
+Regarding the consumption data, in order to see if the NaNs could be imputed or not, we tried to see if there were a lot of consecutive NaNs. The following table shows the number of NaNs that are consecutive, and that last for more than an hour.
+
+```python
+consecutive = X_train.consumption.isnull().astype(int).groupby(X_train.consumption.notnull().astype(int).cumsum()).sum()
+consecutive[consecutive > 60].sort_values()
+```
+
+We can also compute the percentage of NaNs that are consecutive.
+
+```python
+cons1 = round(consecutive[consecutive > 1].sum()/X_train.consumption.isna().sum() * 100)
+cons10 = round(consecutive[consecutive > 10].sum()/X_train.consumption.isna().sum() * 100)
+cons60 = round(consecutive[consecutive > 60].sum()/X_train.consumption.isna().sum() * 100)
+print(f'Percentage of consecutives (> 1 hour) : {cons60}\nPercentage of consecutive (> 10 min) : {cons10}\nTotal percentage fo consecutives : {cons1}')
+```
+
+Given this information, we chose to **discard** them because most of them were not isolated NaNs so imputation wouldn't have produced satisfactory results.
+
+```python
+Y_train.isna().sum()
+```
+
+Disarding the missing values safely in X_train is also encouraged by the fact that, **when there is a missing consumption in X_train, there is also a missing value in Y_train**. If we choose imputation, we also need to impute Y_train, which is a really risky operation.
+
+
+### Global vs. per appliance consumption
+
+
+First of all, if we denote by $\mathcal A$ the ensemble of appliances, $c_a$ the consumption of appliance $a \in \mathcal A$ and $c_{tot}$ the total consumption, it is important to emphasize the fact that, for each timestamp, we don't have : 
+
+$$\sum_{a \in A} c_a = c_{tot}$$
+
+We can clearly see this on the following plot.
 
 ```python
 X_weekly = X_train.iloc[:, :1].resample('W').mean()
@@ -234,6 +275,39 @@ Y_train.groupby(X_data_exploration.is_holidays).mean()
 
 
 For all these reasons, we thought it would be relevant to **add some features to the data**, to be able to predict the per-appliance consumption with more accuracy. This will be detailed further in this report.
+
+
+### Operating time of appliances
+
+
+Usually, people don't use their Kettle for more than 5 minutes, the time for the water to boil. We want to check this.
+
+```python
+ket = Y_train.kettle.fillna(0).where(Y_train.kettle.fillna(0) < 2)
+ket = ket.isnull().astype(int).groupby(ket.notnull().astype(int).cumsum()).sum()
+ket = ket[ket > 0].sort_values(ascending = False)
+ket.value_counts()
+```
+
+Indeed, most of the time, people use it for **1-3 minutes**. This use will be extremely hard to detect in the time series because it is really short.
+
+```python
+was = Y_train.washing_machine.fillna(0).where(Y_train.washing_machine.fillna(0) < 1)
+was = was.isnull().astype(int).groupby(was.notnull().astype(int).cumsum()).sum()
+was = was[was > 0].value_counts()
+was[was > 5]
+```
+
+Here, we can see that the washing machine either works for **1-10 or 100-100 minutes**, which corresponds to a **washing machine cycle**.
+
+```python
+fri = Y_train.fridge_freezer.fillna(0).where(Y_train.fridge_freezer.fillna(0) < 2)
+fri = fri.isnull().astype(int).groupby(fri.notnull().astype(int).cumsum()).sum()
+fri = fri[fri > 0].sort_values(ascending = False).value_counts()
+fri[fri > 200]
+```
+
+For the fridge-freezer, we can see that, even though the energy consumption is quite constant, it is most of the time active for a period of around **20 minutes, which corresponds to the duration of a cooling cycle**. It also activates for **1-3 minutes**, which might correspond to the time **when people open the fridge's door**.
 
 
 # <font color='red'>TODO add other plots</font>
@@ -677,16 +751,38 @@ class DataAugmenter_kettle(BaseEstimator, TransformerMixin):
 For the kettle, we add two features is_breafast (5 am to 9 am) and is_teatime (4 pm to 20 pm) which indicate the two periods of time people use the kettle the most.
 
 
-# <font color='red'>TODO Should we add MultiOutputRegressor + Random Forests as our baseline?</font>
+## First approach : MultiOutputRegressor & Random Forests - a baseline
 
 
-## First approach: deep learning
+Our first though, in order to have an idea of what we could achieve with basic algorithms, was to try Linear Regression and Random Forests. By default, the LinearRegression of sklearn cannot predict multiple outputs. We used the MultiOutputRegressor of sklearn in order to wrap the linear regression. It acts as if it was fitting k differents linear regressions, one for each of the k variables to predict.
+Then, as we saw the performance was very poor, we fitted a RandomForestRegressor, which includes the ability to predict on multiple output by default.
+The performance was slightly better but still not satisfactory. We chose to keep it as our baseline on order to be able to compare other models to it. 
 
-```python
 
-```
+# <font color='red'>TODO Should we add the code? Not sure it's relevant</font>
 
-## Second approach: ensemble methods - Boosting
+
+## Second approach: deep learning
+
+
+Our second approach was, given that the data is time dependent, to use Recurrent Neural Networks (RNNs), which are famous for their ability to work well on time series.
+The hardest part of the work was to format the data correctly so that we could use it efficiently.
+
+
+# <font color='red'>TODO Leo to explain data formatting and proof-read the rest</font>
+
+
+Our architecture is the following :
+
+- One LSTM layer with 20 units.
+- One Dense layer with 4 units (corresponding to the 4 variables to predict)
+- A linear activation function.
+
+
+# <font color='red'>TODO should we do a drawing for the NN?</font>
+
+
+## Third approach: ensemble methods - Boosting
 
 
 For our second attempt, we tried fitting four different regressors - one for each appliance. We chose **XGBoost** which has been used to win many data challenges outperforming several other well-known implementations of gradient tree boosting. 
