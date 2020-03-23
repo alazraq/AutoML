@@ -20,17 +20,13 @@ from y_pipeline import YPipeline
 
 ```python
 X_train = pd.read_csv(
-    '../provided_data_and_metric/X_train_6GWGSxz.csv',
+    '../../provided_data_and_metric/X_train_6GWGSxz.csv',
 )
 X_train.set_index("time_step", inplace=True)
 Y_train = pd.read_csv(
-    '../provided_data_and_metric/y_train_2G60rOL.csv',
+    '../../provided_data_and_metric/y_train_2G60rOL.csv',
 )
 Y_train.set_index("time_step", inplace=True)
-X_test = pd.read_csv(
-    '../provided_data_and_metric/X_test_c2uBt2s.csv',
-)
-X_test.set_index("time_step", inplace=True)
 
 px = XPipeline()
 py = YPipeline()
@@ -107,8 +103,9 @@ Metric: Mean Squared Error. Same as minimizing the Metric on the platform.
 
 ```python
 model.compile(loss=keras.losses.mean_squared_error, optimizer=Adam())
-history = model.fit(x_train, y_train, epochs=3,
-                    validation_data=(x_valid, y_valid))
+history = model.fit(x, y, epochs=4)
+# history = model.fit(x_train, y_train, epochs=3,
+#                     validation_data=(x_valid, y_valid))
 ```
 
 ```python

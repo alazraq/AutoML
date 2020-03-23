@@ -78,7 +78,7 @@ model.add(keras.layers.Dense(1, activation='linear'))
 
 ```python
 model = keras.models.Sequential()
-model.add(keras.layers.InputLayer(input_shape=[120, 1]))
+model.add(keras.layers.InputLayer(input_shape=[256, 1]))
 
 model.add(keras.layers.Conv1D(filters=30, kernel_size=5, padding="valid",
                               activation="relu"))
@@ -103,8 +103,8 @@ Metric: Mean Squared Error. Same as minimizing the Metric on the platform.
 
 ```python
 model.compile(loss=keras.losses.mean_squared_error, optimizer=Adam(lr=0.01))
-history = model.fit(x_train, y_train, epochs=3,
-                    validation_data=(x_valid, y_valid))
+# history = model.fit(x_train, y_train, epochs=3,
+#                     validation_data=(x_valid, y_valid))
 ```
 
 ```python
