@@ -66,11 +66,30 @@ print(f"x_valid shape is {x_valid.shape}")
 ## Wave Net
 
 ```python
+# model = keras.models.Sequential()
+# model.add(keras.layers.InputLayer(input_shape=[256, 1]))
+# for k, f in zip((5, 4, 3, 2), (30, 30, 20, 20)):
+#     model.add(keras.layers.Conv1D(filters=f, kernel_size=k, padding="valid",
+#                                   activation="relu"))
+# model.add(Flatten())
+# model.add(keras.layers.Dense(1024, activation='relu'))
+# model.add(keras.layers.Dense(1, activation='linear'))
+```
+
+```python
 model = keras.models.Sequential()
-model.add(keras.layers.InputLayer(input_shape=[256, 1]))
-for k, f in zip((5, 4, 3, 2), (30, 30, 20, 20)):
-    model.add(keras.layers.Conv1D(filters=f, kernel_size=k, padding="valid",
-                                  activation="relu"))
+# model.add(keras.layers.InputLayer(input_shape=[256, 1]))
+
+model.add(keras.layers.Conv1D(filters=30, kernel_size=5, padding="valid",
+                              activation="relu", input_shape=(256, 1)))
+model.add(keras.layers.Conv1D(filters=30, kernel_size=4, padding="valid",
+                              activation="relu"))
+model.add(keras.layers.Conv1D(filters=40, kernel_size=3, padding="valid",
+                              activation="relu"))
+model.add(keras.layers.Conv1D(filters=50, kernel_size=2, padding="valid",
+                              activation="relu"))
+model.add(keras.layers.Conv1D(filters=50, kernel_size=2, padding="valid",
+                              activation="relu"))
 model.add(Flatten())
 model.add(keras.layers.Dense(1024, activation='relu'))
 model.add(keras.layers.Dense(1, activation='linear'))
@@ -83,9 +102,14 @@ model.summary()
 Metric: Mean Squared Error. Same as minimizing the Metric on the platform.
 
 ```python
+# model.compile(loss=keras.losses.mean_squared_error, optimizer=Adam())
+# history = model.fit(x_train, y_train, epochs=3,
+#                     validation_data=(x_valid, y_valid))
+```
+
+```python
 model.compile(loss=keras.losses.mean_squared_error, optimizer=Adam())
-history = model.fit(x_train, y_train, epochs=3,
-                    validation_data=(x_valid, y_valid))
+history = model.fit(x, y, epochs=4)
 ```
 
 ```python
