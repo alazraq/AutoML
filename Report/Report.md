@@ -754,32 +754,120 @@ For the kettle, we add two features is_breafast (5 am to 9 am) and is_teatime (4
 ## First approach : MultiOutputRegressor & Random Forests - a baseline
 
 
-Our first though, in order to have an idea of what we could achieve with basic algorithms, was to try Linear Regression and Random Forests. By default, the LinearRegression of sklearn cannot predict multiple outputs. We used the MultiOutputRegressor of sklearn in order to wrap the linear regression. It acts as if it was fitting k differents linear regressions, one for each of the k variables to predict.
-Then, as we saw the performance was very poor, we fitted a RandomForestRegressor, which includes the ability to predict on multiple output by default.
-The performance was slightly better but still not satisfactory. We chose to keep it as our baseline on order to be able to compare other models to it. 
+Our first though, in order to have an idea of what we could achieve with basic algorithms, was to try **Linear Regression** and **Random Forests**. 
+
+By default, the LinearRegression of sklearn cannot predict multiple outputs. We used the **MultiOutputRegressor** of sklearn in order to wrap the linear regression. It acts as if it was fitting k differents linear regressions, one for each of the k variables to predict.
+
+Then, as we saw the performance was very poor, we fitted a **RandomForestRegressor**, which includes the ability to predict on multiple output by default. The performance was slightly better but still not satisfactory. We chose to keep it as our baseline on order to be able to compare other models to it. 
 
 
-# <font color='red'>TODO Should we add the code? Not sure it's relevant</font>
-
-
-## Second approach: deep learning
+## Second approach: Recurrent Neural Networks
 
 
 Our second approach was, given that the data is time dependent, to use Recurrent Neural Networks (RNNs), which are famous for their ability to work well on time series.
 The hardest part of the work was to format the data correctly so that we could use it efficiently.
 
 
-# <font color='red'>TODO Leo to explain data formatting and proof-read the rest</font>
+### Data formatting
 
+
+The following code is responsible of the formatting of the data for the RNN. It takes an input of size `(n_obs, n_col)` and produces an output of size `(n_obs, batch_size, n_col)`. We extend the data by creating, for every observation, a time series of length `batch_size`, made of the following observations. in time.
+
+```python
+class RNNDataFormatter(BaseEstimator, TransformerMixin):
+    """Tranformer responsible of the formatting of the data"""
+    
+    def __init__(self, batch_size=60):
+        self.X = None
+        self.batch_size = batch_size
+    
+    def fit(self, x, y=None):
+        return self
+    
+    def transform(self, x, y=None):
+        nb_col = x.shape[1]
+        x_extended = np.zeros((x.shape[0], self.batch_size, nb_col))
+        x = np.pad(x, ((self.batch_size//2, self.batch_size//2), (0,0)), 'mean')
+        for i in range(len(x_extended)):
+            x_extended[i, :, :] = x[i:self.batch_size+i, :]
+        return x_extended
+```
+
+### Data augmentation
+
+As the RNN will be working on all the variables to predict, we only use one `DataAugmenter`, which adds the same features as prevously.
+
+```python
+class DataAugmenter(BaseEstimator, TransformerMixin):
+    """RNN DataAugmenter"""
+    
+    def __init__(self):
+        pass
+
+    def fit(self, x, y=None):
+        return self
+
+    def transform(self, x, y=None):
+        fr_holidays = holidays.France()
+        x["weekday"] = x.index.dayofweek
+        x["month"] = x.index.month
+        x["hour"] = x.index.hour
+        x["is_weekend"] = (x["weekday"] > 4) * 1
+        x["is_holidays"] = (x.index.to_series().apply(lambda t: t in fr_holidays)) * 1
+
+        x["is_breakfast"] = ((x.hour > 5) & (x.hour < 9)) * 1
+        x["is_teatime"] = ((x.hour > 16) & (x.hour < 20)) * 1
+        x["is_TVtime"] = ((x.hour > 17) & (x.hour < 23)) * 1
+        x["is_night"] = ((x.hour > 0) & (x.hour < 7)) * 1
+        return x
+```
+
+### Architecture
 
 Our architecture is the following :
 
 - One LSTM layer with 20 units.
 - One Dense layer with 4 units (corresponding to the 4 variables to predict)
-- A linear activation function.
+- A ReLU activation function.
+- Adam optimizer
+- Early stopping, with a patience of 2.
 
 
-# <font color='red'>TODO should we do a drawing for the NN?</font>
+
+### Custom loss
+
+In the very beginning, we were using the RMSE as a loss to fit our models. But, as the quality of the model is assessed using a metric which is specific to this project, we though it would be interesting to use the custom metric during the training phase. In order to do so, we had to adapt the code of the metric to be compatible with `tensorflow`.
+
+```python
+import tensorflow as tf
+@tf.function
+def metric_nilm(self, y_true, y_pred):
+    y_pred = tf.reshape(y_pred, [tf.shape(y_pred)[0] * tf.shape(y_pred)[1], tf.shape(y_pred)[2]])
+    y_true = tf.reshape(y_true, [tf.shape(y_true)[0] * tf.shape(y_true)[1], tf.shape(y_true)[2]])
+    score = 0.0
+
+    test = tf.slice(y_true, [0, 0], [-1, 1])
+    pred = tf.slice(y_pred, [0, 0], [-1, 1])
+    score += mt.sqrt(mt.reduce_sum(mt.subtract(pred, test) ** 2) / float(len(test))) * 5.55
+
+    test = tf.slice(y_true, [0, 1], [-1, 1])
+    pred = tf.slice(y_pred, [0, 1], [-1, 1])
+    score += mt.sqrt(mt.reduce_sum(mt.subtract(pred, test) ** 2) / float(len(test))) * 49.79
+
+    test = tf.slice(y_true, [0, 2], [-1, 1])
+    pred = tf.slice(y_pred, [0, 2], [-1, 1])
+    score += mt.sqrt(mt.reduce_sum(mt.subtract(pred, test) ** 2) / float(len(test))) * 14.57
+
+    test = tf.slice(y_true, [0, 3], [-1, 1])
+    pred = tf.slice(y_pred, [0, 3], [-1, 1])
+    score += mt.sqrt(mt.reduce_sum(mt.subtract(pred, test) ** 2) / float(len(test))) * 4.95
+
+    score /= 74.86
+
+    return score
+```
+
+Using this function, we were able to optimize the network for our specific problem rather than only minimizing the mean squared error.
 
 
 ## Third approach: ensemble methods - Boosting
