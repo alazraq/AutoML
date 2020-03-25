@@ -1,0 +1,5 @@
+Ranking,Date,Method,Parameters,Public score
+0,2020-03-11,Linear Regression,eheh,48.96276,
+2,2020-03-19,RNN,fdfds,48.4677042278911,
+3,2020-03-22,XGB Kettle + CNN,ffsdf,34.6938644954423,
+4,2020-03-23,XGB Kettle + CNN (tuned),NA,31.7061497376892,

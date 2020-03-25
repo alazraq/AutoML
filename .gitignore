@@ -1,6 +1,5 @@
 
 # Custom excludes
-*.csv
 .idea/
 *.ipynb
 

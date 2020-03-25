@@ -14,7 +14,7 @@ jupyter:
 ---
 
 # Final Report for Machine Learning II Data Challenge: Smart meter is coming
-by Guillaume Le Fur, Abderrahmane Lazraq and Leonardo Natale
+*by Guillaume Le Fur, Abderrahmane Lazraq and Leonardo Natale*
 
 
 
@@ -29,10 +29,11 @@ by Guillaume Le Fur, Abderrahmane Lazraq and Leonardo Natale
     - TV
     - Kettle
 5. Baseline: MultiOutputRegressor & Random Forests
-6. First approach: deep learning
-7. Second approach: ensemble methods - Boosting
-8. Results and benchmark
->9. Conclusion
+6. First approach: Recurrent Neural Networks
+7. Second approach: Convolutional Neural Networks
+8. Third approach: ensemble methods - Boosting
+9. Results and benchmark
+>10. Conclusion
 ---
 
 
@@ -374,6 +375,53 @@ fri[fri > 200]
 
 For the fridge-freezer, we can see that, even though the energy consumption is quite constant, it is most of the time active for a period of around **20 minutes, which corresponds to the duration of a cooling cycle**. It also activates for **1-3 minutes**, which might correspond to the time **when people open the fridge's door**.
 
+```python
+tv = Y_train.TV.fillna(0).where(Y_train.TV.fillna(0) < 10)
+tv = tv.isnull().astype(int).groupby(tv.notnull().astype(int).cumsum()).sum()
+tv = tv[tv > 0].sort_values(ascending = False).value_counts()
+tv[tv > 20]
+```
+
+Regarding the television, we can see that it is most of the time on for either a very short time (it appears that people like to watch TV during a time which is a multiple of 3), or one which is around 150 minutes, which is approximately **two hours and a half, which is the duration of a movie + the duration of the commercial breaks**.
+
+```python
+X_mean = X_train[['consumption']].copy()
+c0 = X_mean.index.to_series().between('2013-03-17T00:00:00', '2013-03-17T6:0:00')
+X_mean = X_mean[c0]
+X_mean['m'] = X_mean.consumption.rolling(10).mean().fillna(method="bfill")
+X_mean['s'] = X_mean.consumption.rolling(10).std().fillna(method="bfill")
+
+plt.figure(figsize=(15, 8))
+plt.plot(
+    X_mean.index.values,
+    X_mean.m.values,
+    label = "consumption",
+    color='navy'
+)
+plt.errorbar(
+    X_mean.index.values,
+    X_mean.m.values,
+    yerr=X_mean.s.values,
+    elinewidth=1,
+    linestyle='', 
+    alpha = 0.5,
+    color='lightsteelblue',
+    label='std'
+)
+plt.legend()
+plt.show()
+```
+
+```python
+from ipywidgets import interactive
+Y_perc = Y_train.groupby(X_perc.index.hour).mean()
+Y_perc.div(Y_perc.sum(axis=1), axis=0)
+
+def plot_pie(hour):
+    Y_perc.loc[hour, :].plot.pie()
+    
+interactive(plot_pie, hour= (0, 23))
+```
 
 ## III. Data preprocessing
 
@@ -493,86 +541,7 @@ class MyStandardScaler(BaseEstimator, TransformerMixin):
 - A **data augmenter** for feature engineering. We implemented a different data augmenter for each appliance, we inspect those in detail in the following section.
 
 
-### 2. Pipelines adapted to RNN
-
-```python
-class XPipeline_RNN:
-    """Pipeline for the features of input dataset of RNN"""
-    def __init__(self):
-        self.pipeline = Pipeline([
-            ('DataImputer', DataImputer()),
-            ('MyStandardScaler', MyStandardScaler()),
-            ('DataAugmenter', DataAugmenter()),
-            ('MyOneHotEncoder', MyOneHotEncoder()),
-            ('RNNDataFormatter', RNNDataFormatter())
-    ])
-
-    def fit(self, x):
-        return self.pipeline.fit(x)
-
-    def transform(self, x):
-        return self.pipeline.transform(x)
-    
-class YPipeline_RNN:
-    """Pipeline for target of input dataset of RNN"""
-    def __init__(self):
-        self.pipeline = Pipeline([
-            ('YImputer', YImputer()),
-            ('RNNDataFormatter', RNNDataFormatter())
-        ])
-
-    def fit(self, x):
-        return self.pipeline.fit(x)
-
-    def transform(self, x):
-        return self.pipeline.transform(x)
-```
-
-These pipelines are similar to the previous ones, we only add two additional steps to make data compatible with RNN:
-
-
-- A **one hot encoder** for the categorical features (hours, weekdays and months)
-
-```python
-class MyOneHotEncoder(BaseEstimator, TransformerMixin):
-
-    def __init__(self):
-        self.all_possible_hours = np.arange(0, 24)
-        self.all_possible_weekdays = np.arange(0, 7)
-        self.all_possible_months = np.arange(1, 13)
-        self.ohe_hours = OneHotEncoder(drop="first")
-        self.ohe_weekdays = OneHotEncoder(drop="first")
-        self.ohe_months = OneHotEncoder(drop="first")
-    
-    def fit(self, X, y=None):
-        self.ohe_hours.fit(self.all_possible_hours.reshape(-1,1))
-        self.ohe_weekdays.fit(self.all_possible_weekdays.reshape(-1,1))
-        self.ohe_months.fit(self.all_possible_months.reshape(-1,1))
-        return self
-
-    def transform(self, X, y=None):
-        hours = pd.DataFrame(self.ohe_hours.transform(X.hour.values.reshape(-1,1)).toarray(), 
-                             columns=["hour_"+str(i) for i in range(1, 24)],
-                             index=X.index
-                            )
-        weekdays = pd.DataFrame(self.ohe_weekdays.transform(X.weekday.values.reshape(-1,1)).toarray(),
-                                columns=["weekday_"+str(i) for i in range(1, 7)],
-                                index=X.index
-                               )
-        months = pd.DataFrame(self.ohe_months.transform(X.month.values.reshape(-1,1)).toarray(), 
-                              columns=["month_"+str(i) for i in range(2, 13)],
-                              index=X.index
-                             )
-        X = pd.concat([X, hours, weekdays, months], axis=1)
-        X.drop(["month", "weekday", "hour"], axis=1, inplace=True)
-        return X
-```
-
-- A **data formatter** to produce batches for RNN. We optimize the batche sizes according to the appliance. The RNN data formatter discussion is skipped here and is left for the modelling part.
-
-
 ##  IV. Feature engineering by appliance
-
 
 For each appliance we produced additional features that aim at increasing the predictive power of the machine learning algorithms used by creating features from the raw data that help facilitate the machine learning process for that specific appliance. These follow from the data exploration in section II and include weekday, is_weekend and is_holidays which accounts for French national holidays.
 
@@ -770,14 +739,12 @@ The kettle is a very special appliance because it only operates for few consecut
 We also add two features is_breafast (5 am to 9 am) and is_teatime (4 pm to 8 pm) which indicate the two time periods people use the kettle the most.
 
 
-## V. Baseline: MultiOutputRegressor & Random Forests 
+## V. Baseline: MultiOutputRegressor
 
 
 Our first thought, in order to have an idea of what we could achieve with basic algorithms, was to try **Linear Regression** and **Random Forests**. 
 
 By default, the LinearRegression of sklearn cannot predict multiple outputs. So, we used the **MultiOutputRegressor** of sklearn in order to wrap the linear regression. It acts as if it was fitting k differents linear regressions, one for each of the k variables to predict.
-
-Then, as we saw the performance was very poor, we fitted a **RandomForestRegressor**, which includes the ability to predict on multiple output by default. The performance was slightly better but still not satisfactory. We chose to keep it as our baseline on order to be able to compare other models to it. 
 
 ```python
 # Prepare data for regression
@@ -805,11 +772,10 @@ The hardest part of the work was to format the data correctly so that we could u
 ### Data formatting
 
 
-The following code is responsible of the formatting of the data for the RNN. It takes an input of size `(n_obs, n_col)` and produces an output of size `(n_obs, batch_size, n_col)`. We extend the data by creating, for every observation, a time series of length `batch_size`, made of the following observations in time.
+The following code is responsible of the formatting of the data for the RNN. It takes an input of size `(n_obs, n_col)` and produces an output of size `(n_obs / batch_size, batch_size, n_col)`. We simply reformat the data by creating time series of size `batch_size`.
 
 ```python
 class RNNDataFormatter(BaseEstimator, TransformerMixin):
-    """Tranformer responsible of the formatting of the data"""
     
     def __init__(self, batch_size=60):
         self.X = None
@@ -819,15 +785,20 @@ class RNNDataFormatter(BaseEstimator, TransformerMixin):
         return self
     
     def transform(self, x, y=None):
+        if isinstance(x, pd.DataFrame):
+            x = x.to_numpy()
+        print(x.shape)
+        print(x.__class__.__name__)
+        while x.shape[0] % self.batch_size != 0:
+            print("Appending a row")
+            print([x[-1, :]])
+            x = np.append(x, [x[-1, :]], axis=0)
+        print(x.shape)
         nb_col = x.shape[1]
-        x_extended = np.zeros((x.shape[0], self.batch_size, nb_col))
-        x = np.pad(x, ((self.batch_size//2, self.batch_size//2), (0,0)), 'mean')
-        for i in range(len(x_extended)):
-            x_extended[i, :, :] = x[i:self.batch_size+i, :]
-        return x_extended
+        return x.reshape((int(x.shape[0] / self.batch_size), self.batch_size, nb_col))
 ```
 
-### Data augmentation
+### Data augmentation - encoding
 
 As the RNN will be working on all the variables to predict, we only use one `DataAugmenter`, which adds the same features as prevously.
 
@@ -855,6 +826,89 @@ class DataAugmenter(BaseEstimator, TransformerMixin):
         x["is_night"] = ((x.hour > 0) & (x.hour < 7)) * 1
         return x
 ```
+
+We also use a custom One Hot Encoder for the categorical features (hours, weekdays and months). The encoder has to be custom to prevent an error if there are different values between X_train and X_test (if X_test has months that are not present in X_train for instance).
+
+```python
+class MyOneHotEncoder(BaseEstimator, TransformerMixin):
+
+    def __init__(self):
+        self.all_possible_hours = np.arange(0, 24)
+        self.all_possible_weekdays = np.arange(0, 7)
+        self.all_possible_months = np.arange(1, 13)
+        self.ohe_hours = OneHotEncoder(drop="first")
+        self.ohe_weekdays = OneHotEncoder(drop="first")
+        self.ohe_months = OneHotEncoder(drop="first")
+    
+    def fit(self, X, y=None):
+        self.ohe_hours.fit(self.all_possible_hours.reshape(-1,1))
+        self.ohe_weekdays.fit(self.all_possible_weekdays.reshape(-1,1))
+        self.ohe_months.fit(self.all_possible_months.reshape(-1,1))
+        return self
+
+    def transform(self, X, y=None):
+        hours = pd.DataFrame(self.ohe_hours.transform(X.hour.values.reshape(-1,1)).toarray(), 
+                             columns=["hour_"+str(i) for i in range(1, 24)],
+                             index=X.index
+                            )
+        weekdays = pd.DataFrame(self.ohe_weekdays.transform(X.weekday.values.reshape(-1,1)).toarray(),
+                                columns=["weekday_"+str(i) for i in range(1, 7)],
+                                index=X.index
+                               )
+        months = pd.DataFrame(self.ohe_months.transform(X.month.values.reshape(-1,1)).toarray(), 
+                              columns=["month_"+str(i) for i in range(2, 13)],
+                              index=X.index
+                             )
+        X = pd.concat([X, hours, weekdays, months], axis=1)
+        X.drop(["month", "weekday", "hour"], axis=1, inplace=True)
+        return X
+```
+
+### Preprocessing Pipeline
+
+```python
+class XPipeline_RNN:
+    """Pipeline for the features of input dataset of RNN"""
+    def __init__(self):
+        self.pipeline = Pipeline([
+            ('DataImputer', DataImputer()), # Imputing the data.
+            ('MyStandardScaler', MyStandardScaler()), # Scaling it.
+            ('DataAugmenter', DataAugmenter()), # Adding features.
+            ('MyOneHotEncoder', MyOneHotEncoder()), # Encoding features
+            ('RNNDataFormatter', RNNDataFormatter()) # Formatting the data correctly.
+    ])
+
+    def fit(self, x):
+        return self.pipeline.fit(x)
+
+    def transform(self, x):
+        return self.pipeline.transform(x)
+    
+class YPipeline_RNN:
+    """Pipeline for target of input dataset of RNN"""
+    def __init__(self):
+        self.pipeline = Pipeline([
+            ('YImputer', YImputer()), # Imputing the data.
+            ('RNNDataFormatter', RNNDataFormatter()) # Formatting the data correctly.
+        ])
+
+    def fit(self, x):
+        return self.pipeline.fit(x)
+
+    def transform(self, x):
+        return self.pipeline.transform(x)
+```
+
+We apply several transformations to X :
+
+- The missing data is imputed.
+- It is scaled.
+- Features are added.
+- Categorical features are One Hot Encoded.
+- Data is formatted to fit the input of the RNN.
+
+Regarding Y, only imputation and missing data is done.
+
 
 ### Architecture
 
@@ -910,20 +964,42 @@ Using this function, we were able to optimize the network for our specific probl
 
 The idea to use CNN came up after we asked ourselves the following question:  
 "*How can we develop a model which takes into account present and future values of consumption, centered around the current time step?*"  
-Therefore, we decided to structure our data as follows:
-
-Consumption,	y  
-10, 20, 30		40  
-20, 30, 40		50  
-30, 40, 50		60  
-...
 
 
-Our CNN model will learn a function that maps a sequence of past and future observations as input to an output observation. As such, the sequence of observations must be transformed into multiple samples from which the model can learn.  
-We can divide the sequence into multiple input/output patterns, where `batch_size` time steps are used as input and one time step is used as output.
+### Data Formatting
+
+Our answer, was to structure the data as follows. Let's take a simple example, with just consumption and TV.    
+  
+The data is originally in this format:
+
+| Cons. | TV     |
+|-------|--------|
+| 10    | 0      |       
+| 20    | 8      |
+| 25    | 10     |  
+| 18    | 8      |       
+| 12    | 0      |
+| 5     | 0      |  
+
+After it goes through our pipeline, it would come out in this format:
+
+| Cons.            | TV     |
+|------------------|--------|
+| **15**, 10, 20,  | 0      |       
+| 10, 20, 25       | 8      |
+| 20, 25, 18       | 10     |  
+| 25, 18, 12       | 8      |       
+| 18, 12, 5        | 0      |
+| 12, 5, **15**    | 0      |
+
+where the data is left and right padded with the mean value for consumption **15**, in order to center the sequence around the present value.  
+We have then divided the sequence into multiple input/output patterns, where `batch_size` time steps are used as input and one time step is used as output.
+
+
+The class `CNNDataFormatter` takes care of it:
 
 ```python
-class RNNDataFormatter(BaseEstimator, TransformerMixin):
+class CNNDataFormatter(BaseEstimator, TransformerMixin):
     
     def __init__(self, batch_size=120):
         self.X = None
@@ -944,9 +1020,65 @@ class RNNDataFormatter(BaseEstimator, TransformerMixin):
         return xx
 ```
 
+The output will be of the size `(401759, 120, 1)`.
+
+
+### Preprocessing Pipeline
+
+
+Before, the class `DataImputer` takes cares of missing values and drops all columns but consumption.  
+Then the data is passed to a `Standard Scaler`, before being formatted as explained above.
+
 ```python
-## TO DO
+class XPipeline_CNN:
+
+    def __init__(self):
+        self.pipeline = Pipeline([
+                ('DataImputer', DataImputer()),
+                ('StandardScaler', StandardScaler()),
+                ('CNNDataFormatter', RNNDataFormatter())
+        ])
+
+    def fit(self, x):
+        return self.pipeline.fit(x)
+
+    def transform(self, x):
+        return self.pipeline.transform(x)
 ```
+
+Regarding the target variable, we take care only of the missing values with `YImputer` and not not apply any transformation.
+
+
+### Architecture
+
+Our architecture is inspired by the one adopted in the course **MAP545** and as following:
+
+- 6x6 1D convolution with valid padding, 32 filters
+- ReLU activation
+- 3x3 1D convolution with valid padding, 32 filters
+- ReLU activation
+- 3x3 1D convolution with valid padding, 48 filters
+- ReLU activation
+- 3x3 1D convolution with valid padding, 64 filters
+- ReLU activation
+- 2x2 1D convolution with valid padding, 64 filters
+- ReLU activation
+- Flatten
+- Dense layer with 1024 nodes, ReLu activation
+- Dense layer with 1 nodes, linear activation
+
+
+Four different models, one per appliance, are fit using the efficient Adam version of stochastic gradient descent and optimized using the mean squared error loss function. Given we train four different models, minimizing the mean squared error is analogous to minimizing the metric nilm per single appliance.
+
+```python
+model.compile(loss=keras.losses.mean_squared_error, optimizer=tf.keras.optimizers.Adam())
+history = model.fit(x_train, y_train, epochs=4,
+                    validation_data=(x_valid, y_valid))
+```
+
+Promising results were obtained for **TV**, **fridge_freezer** and **washing_machine**.  
+However, the model fails to predict consumption for **kettle** due to the high sparsity of the data.
+
 
 ## VIII. Third approach : ensemble methods - Boosting
 
@@ -954,7 +1086,7 @@ class RNNDataFormatter(BaseEstimator, TransformerMixin):
 For our third attempt, we tried fitting four different regressors - one for each appliance. We chose **XGBoost** which has been used to win many data challenges, outperforming several other well-known implementations of gradient tree boosting. 
 
 
-1. We load the data and preprocess it using the pipeline XPipeline_XGB defined in section 3
+1. We load the data and preprocess it using the pipeline XPipeline_XGB defined in section 3.
 
 ```python
 # Load data and set time_step as index
@@ -984,13 +1116,13 @@ y = py.transform(Y_train)
 print('End of second transform')
 ```
 
-2. We split the data into train and test datasets
+2. We split the data into train and test datasets.
 
 ```python
 x_train, x_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=49)
 ```
 
-3. We define custum nilm metric based on the metric provided, but for the individual appliance
+3. We define custum nilm metric based on the metric provided, but for the individual appliance.
 
 ```python
 # Custom nilm metric in case of fridge for example
@@ -1000,7 +1132,7 @@ def nilm_metric(y_true, y_pred):
         return "nilm", score
 ```
 
-4. Fit the model and look at the most important features
+4. Fit the model and look at the most important features.
 
 ```python
 # Fitting an XGBoost regressor
@@ -1020,7 +1152,7 @@ for f in range(len(indices)):
     print("%d. %s (%f)" % (f + 1, X.columns[indices[f]], importances[indices[f]]))
 ```
 
-5. Evaluate performance
+5. Evaluate performance.
 
 ```python
 # Plotting true value vs prediction
@@ -1039,17 +1171,59 @@ plt.bar(range(len(indices)), importances[indices], color="r", align="center")
 nilm_metric(y_val, pred)
 ```
 
-## IX. Results and benchmark
+## IX. Results and benchmark - Conclusion
+
+
+### Results
+
+
+In this part, the results of all the methods we tried is summarised. At the very beginning, we tried the **Linear Regression** as a baseline. Our score was almost like the benchmark on the website. Afterwards, we started working on **Recurrent Neural Networks**. Setting them up was very time consuming as we never had done that before. The results were not really satisfactory as we did not manage to make them perform betten than the Linear Regression.
+Then, we started working on **XGBoost** and **Convolutional Neural Networks** at the same time. Both were giving good results but some were performing better on some appliances than others. So we tried to **mix them** in order to maximize the accuracy. Once we had used the best tool for every appliance, we started **tuning** the models individually, which led to our best model.
 
 ```python
-# TO DO
-```
+import matplotlib.dates as mdates
 
-## X. Conclusion
+res = pd.read_csv(
+    'scores.csv',
+    index_col=False
+)
+
+res = res.set_index('Ranking').round(4)[['Method', 'Date', 'Public score']]
+res
+```
 
 ```python
-# TO DO
+res.columns = ['method', 'date', 'score']
+res.date = pd.to_datetime(res.date)
+
+benchmark_value = 47.6480
+
+plt.figure(figsize=(15, 8))
+plt.plot_date(
+    res.date,
+    res.score,
+    linestyle='--'
+)
+
+for index, row in res.iterrows():
+    x = row['date']
+    y = row['score']
+    label = row['method']
+    plt.annotate(label, (mdates.date2num(x), y))
+
+plt.annotate("Benchmark", (mdates.date2num(res.date[0]), benchmark_value - .5))
+plt.axhline(y=benchmark_value)
+plt.show()
 ```
+
+### Conclusion
+
+
+This project was interesting on multiple aspects. It was the first time we had to deal with time series, which was a real challenge because it was a whole new paradigm, the data is now linked by their order and not only by the values of the variables. We also used RNNs for the first time. They are complex to understand and require meticulous tuning in order to give satisfactory results. Data formatting and preparation is also a big part of the work on RNNs.
+
+We also understood the interest of mixing models when there are multiple variables to predict, so that one can optimize the prediction for every variable.
+The sparsity of the data was also interesting, and we would haveliked to dedicate more time to its study.
+
 
 PS: submissions on the platform were made under two user names guillaume.le-fur & LeonardoNatale and Abdou.Lazraq.
 
