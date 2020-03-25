@@ -1064,7 +1064,14 @@ plt.bar(range(len(indices)), importances[indices], color="r", align="center")
 nilm_metric(y_val, pred)
 ```
 
-## IX. Results and benchmark
+## IX. Results and benchmark - Conclusion
+
+
+### Results
+
+
+In this part, the results of all the methods we tried is summarised. At the very beginning, we tried the **Linear Regression** as a baseline. Our score was almost like the benchmark on the website. Afterwards, we started working on **Recurrent Neural Networks**. Setting them up was very time consuming as we never had done that before. The results were not really satisfactory as we did not manage to make them perform betten than the Linear Regression.
+Then, we started working on **XGBoost** and **Convolutional Neural Networks** at the same time. Both were giving good results but some were performing better on some appliances than others. So we tried to **mix them** in order to maximize the accuracy. Once we had used the best tool for every appliance, we started **tuning** the models individually, which led to our best model.
 
 ```python
 import matplotlib.dates as mdates
@@ -1075,6 +1082,10 @@ res = pd.read_csv(
 )
 
 res = res.set_index('Ranking').round(4)[['Method', 'Date', 'Public score']]
+res
+```
+
+```python
 res.columns = ['method', 'date', 'score']
 res.date = pd.to_datetime(res.date)
 
@@ -1098,10 +1109,13 @@ plt.axhline(y=benchmark_value)
 plt.show()
 ```
 
-## X. Conclusion
+### Conclusion
 
-```python
-# TO DO
-```
+
+This project was interesting on multiple aspects. It was the first time we had to deal with time series, which was a real challenge because it was a whole new paradigm, the data is now linked by their order and not only by the values of the variables. We also used RNNs for the first time. They are complex to understand and require meticulous tuning in order to give satisfactory results. Data formatting and preparation is also a big part of the work on RNNs.
+
+We also understood the interest of mixing models when there are multiple variables to predict, so that one can optimize the prediction for every variable.
+The sparsity of the data was also interesting, and we would haveliked to dedicate more time to its study.
+
 
 PS: submissions on the platform were made under two user names guillaume.le-fur & LeonardoNatale and Abdou.Lazraq.
