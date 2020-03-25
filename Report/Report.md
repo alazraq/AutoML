@@ -36,6 +36,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.base import BaseEstimator, TransformerMixin
 ```
 
 ## Introduction: objectives and methodology
@@ -309,6 +310,53 @@ fri[fri > 200]
 
 For the fridge-freezer, we can see that, even though the energy consumption is quite constant, it is most of the time active for a period of around **20 minutes, which corresponds to the duration of a cooling cycle**. It also activates for **1-3 minutes**, which might correspond to the time **when people open the fridge's door**.
 
+```python
+tv = Y_train.TV.fillna(0).where(Y_train.TV.fillna(0) < 10)
+tv = tv.isnull().astype(int).groupby(tv.notnull().astype(int).cumsum()).sum()
+tv = tv[tv > 0].sort_values(ascending = False).value_counts()
+tv[tv > 20]
+```
+
+Regarding the television, we can see that it is most of the time on for either a very short time (it appears that people like to watch TV during a time which is a multiple of 3), or one which is around 150 minutes, which is approximately **two hours and a half, which is the duration of a movie + the duration of the commercial breaks**.
+
+```python
+X_mean = X_train[['consumption']].copy()
+c0 = X_mean.index.to_series().between('2013-03-17T00:00:00', '2013-03-17T6:0:00')
+X_mean = X_mean[c0]
+X_mean['m'] = X_mean.consumption.rolling(10).mean().fillna(method="bfill")
+X_mean['s'] = X_mean.consumption.rolling(10).std().fillna(method="bfill")
+
+plt.figure(figsize=(15, 8))
+plt.plot(
+    X_mean.index.values,
+    X_mean.m.values,
+    label = "consumption",
+    color='navy'
+)
+plt.errorbar(
+    X_mean.index.values,
+    X_mean.m.values,
+    yerr=X_mean.s.values,
+    elinewidth=1,
+    linestyle='', 
+    alpha = 0.5,
+    color='lightsteelblue',
+    label='std'
+)
+plt.legend()
+plt.show()
+```
+
+```python
+from ipywidgets import interactive
+Y_perc = Y_train.groupby(X_perc.index.hour).mean()
+Y_perc.div(Y_perc.sum(axis=1), axis=0)
+
+def plot_pie(hour):
+    Y_perc.loc[hour, :].plot.pie()
+    
+interactive(plot_pie, hour= (0, 23))
+```
 
 # <font color='red'>TODO add other plots</font>
 
@@ -435,107 +483,6 @@ class MyStandardScaler(BaseEstimator, TransformerMixin):
 
 - A Data Augmenter for feature engineering. We implemented a different data augmenter for each appliance, we inspect those in detail in the following section.
 
-
-### 2. Pipelines adapted to RNN
-
-```python
-class XPipeline_RNN:
-    """Pipeline for the features of input dataset of RNN"""
-    def __init__(self):
-        self.pipeline = Pipeline([
-            ('DataImputer', DataImputer()),
-            ('MyStandardScaler', MyStandardScaler()),
-            ('DataAugmenter', DataAugmenter()),
-            ('MyOneHotEncoder', MyOneHotEncoder()),
-            ('RNNDataFormatter', RNNDataFormatter())
-    ])
-
-    def fit(self, x):
-        return self.pipeline.fit(x)
-
-    def transform(self, x):
-        return self.pipeline.transform(x)
-    
-class YPipeline_RNN:
-    """Pipeline for target of input dataset of RNN"""
-    def __init__(self):
-        self.pipeline = Pipeline([
-            ('YImputer', YImputer()),
-            ('RNNDataFormatter', RNNDataFormatter())
-        ])
-
-    def fit(self, x):
-        return self.pipeline.fit(x)
-
-    def transform(self, x):
-        return self.pipeline.transform(x)
-```
-
-These pipelines are similar to the previous ones, we only add two additional steps to make data compatible with RNN:
-
-
-- A One Hot Encoder for the categorical features (hours, weekdays and months)
-
-```python
-class MyOneHotEncoder(BaseEstimator, TransformerMixin):
-
-    def __init__(self):
-        self.all_possible_hours = np.arange(0, 24)
-        self.all_possible_weekdays = np.arange(0, 7)
-        self.all_possible_months = np.arange(1, 13)
-        self.ohe_hours = OneHotEncoder(drop="first")
-        self.ohe_weekdays = OneHotEncoder(drop="first")
-        self.ohe_months = OneHotEncoder(drop="first")
-    
-    def fit(self, X, y=None):
-        self.ohe_hours.fit(self.all_possible_hours.reshape(-1,1))
-        self.ohe_weekdays.fit(self.all_possible_weekdays.reshape(-1,1))
-        self.ohe_months.fit(self.all_possible_months.reshape(-1,1))
-        return self
-
-    def transform(self, X, y=None):
-        hours = pd.DataFrame(self.ohe_hours.transform(X.hour.values.reshape(-1,1)).toarray(), 
-                             columns=["hour_"+str(i) for i in range(1, 24)],
-                             index=X.index
-                            )
-        weekdays = pd.DataFrame(self.ohe_weekdays.transform(X.weekday.values.reshape(-1,1)).toarray(),
-                                columns=["weekday_"+str(i) for i in range(1, 7)],
-                                index=X.index
-                               )
-        months = pd.DataFrame(self.ohe_months.transform(X.month.values.reshape(-1,1)).toarray(), 
-                              columns=["month_"+str(i) for i in range(2, 13)],
-                              index=X.index
-                             )
-        X = pd.concat([X, hours, weekdays, months], axis=1)
-        X.drop(["month", "weekday", "hour"], axis=1, inplace=True)
-        return X
-```
-
-- A data formatter to produce batches for RNN, 60 observations per batch (1 hour of observations) seemed like a reasonable choice
-
-```python
-class RNNDataFormatter(BaseEstimator, TransformerMixin):
-    
-    def __init__(self, batch_size=60):
-        self.X = None
-        self.batch_size = batch_size
-    
-    def fit(self, x, y=None):
-        return self
-    
-    def transform(self, x, y=None):
-        if isinstance(x, pd.DataFrame):
-            x = x.to_numpy()
-        print(x.shape)
-        print(x.__class__.__name__)
-        while x.shape[0] % self.batch_size != 0:
-            print("Appending a row")
-            print([x[-1, :]])
-            x = np.append(x, [x[-1, :]], axis=0)
-        print(x.shape)
-        nb_col = x.shape[1]
-        return x.reshape((int(x.shape[0] / self.batch_size), self.batch_size, nb_col))
-```
 
 ##  Feature engineering by appliance
 
@@ -793,7 +740,7 @@ class RNNDataFormatter(BaseEstimator, TransformerMixin):
         return x_extended
 ```
 
-### Data augmentation
+### Data augmentation - encoding
 
 As the RNN will be working on all the variables to predict, we only use one `DataAugmenter`, which adds the same features as prevously.
 
@@ -820,6 +767,78 @@ class DataAugmenter(BaseEstimator, TransformerMixin):
         x["is_TVtime"] = ((x.hour > 17) & (x.hour < 23)) * 1
         x["is_night"] = ((x.hour > 0) & (x.hour < 7)) * 1
         return x
+```
+
+We also use a custom One Hot Encoder for the categorical features (hours, weekdays and months). The encoder has to be custom to prevent an error if there are different values between X_train and X_test (if X_test has months that aren't present in X_train for instance).
+
+```python
+class MyOneHotEncoder(BaseEstimator, TransformerMixin):
+
+    def __init__(self):
+        self.all_possible_hours = np.arange(0, 24)
+        self.all_possible_weekdays = np.arange(0, 7)
+        self.all_possible_months = np.arange(1, 13)
+        self.ohe_hours = OneHotEncoder(drop="first")
+        self.ohe_weekdays = OneHotEncoder(drop="first")
+        self.ohe_months = OneHotEncoder(drop="first")
+    
+    def fit(self, X, y=None):
+        self.ohe_hours.fit(self.all_possible_hours.reshape(-1,1))
+        self.ohe_weekdays.fit(self.all_possible_weekdays.reshape(-1,1))
+        self.ohe_months.fit(self.all_possible_months.reshape(-1,1))
+        return self
+
+    def transform(self, X, y=None):
+        hours = pd.DataFrame(self.ohe_hours.transform(X.hour.values.reshape(-1,1)).toarray(), 
+                             columns=["hour_"+str(i) for i in range(1, 24)],
+                             index=X.index
+                            )
+        weekdays = pd.DataFrame(self.ohe_weekdays.transform(X.weekday.values.reshape(-1,1)).toarray(),
+                                columns=["weekday_"+str(i) for i in range(1, 7)],
+                                index=X.index
+                               )
+        months = pd.DataFrame(self.ohe_months.transform(X.month.values.reshape(-1,1)).toarray(), 
+                              columns=["month_"+str(i) for i in range(2, 13)],
+                              index=X.index
+                             )
+        X = pd.concat([X, hours, weekdays, months], axis=1)
+        X.drop(["month", "weekday", "hour"], axis=1, inplace=True)
+        return X
+```
+
+### Preprocessing Pipeline
+
+```python
+class XPipeline_RNN:
+    """Pipeline for the features of input dataset of RNN"""
+    def __init__(self):
+        self.pipeline = Pipeline([
+            ('DataImputer', DataImputer()), # Imputing the data.
+            ('MyStandardScaler', MyStandardScaler()), # Scaling it.
+            ('DataAugmenter', DataAugmenter()), # Adding features.
+            ('MyOneHotEncoder', MyOneHotEncoder()), # Encoding features
+            ('RNNDataFormatter', RNNDataFormatter()) # Formatting the data correctly.
+    ])
+
+    def fit(self, x):
+        return self.pipeline.fit(x)
+
+    def transform(self, x):
+        return self.pipeline.transform(x)
+    
+class YPipeline_RNN:
+    """Pipeline for target of input dataset of RNN"""
+    def __init__(self):
+        self.pipeline = Pipeline([
+            ('YImputer', YImputer()), # Imputing the data.
+            ('RNNDataFormatter', RNNDataFormatter()) # Formatting the data correctly.
+        ])
+
+    def fit(self, x):
+        return self.pipeline.fit(x)
+
+    def transform(self, x):
+        return self.pipeline.transform(x)
 ```
 
 ### Architecture
