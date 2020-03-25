@@ -43,6 +43,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import holidays
 
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import train_test_split
@@ -55,11 +56,11 @@ from sklearn.linear_model import LinearRegression
 ## I. Introduction: objectives and methodology
 
 
-The objective of this project is to put the Machine Learning methods that we've been taugh during the Machine Learning 2 course into practice, on a real data set, the "Smart meter is coming" challenge.
+The objective of this project is to put the Machine Learning methods that we've been taught during the Machine Learning 2 course into practice, on a real data set, the "Smart meter is coming" challenge.
 
-We will start by introducing our exploratory data analysis and what first conclusions we could draw from it. Then, we'll detail the data pre-processing and feature engineering we've done, and justify their interest.
+We will start by introducing our exploratory data analysis and what first conclusions we could draw from it. Then, we will detail the data pre-processing and feature engineering we've done, and justify their interest.
 
-Finally, we'll present the results we obtained using two methods : Deep learning (with RNNs and CNNs) and Boosting (with XGboost).
+Finally, we will present the results we obtained using two methods : Deep learning (with RNNs and CNNs) and Boosting (with XGboost).
 
 You will be able to find the entirety of the code on the following [GitHub repository](https://github.com/alazraq/AutoML). Not all the code will be detailed here but rather the most important parts.
 
@@ -424,19 +425,19 @@ class DataImputer(BaseEstimator, TransformerMixin):
         self.X = None
 
     def fit(self, x, y=None):
+        self.days_to_drop = ["2013-10-27", "2013-10-28", "2013-12-18", "2013-12-19",
+                             "2013-08-01", "2013-08-02", "2013-11-10", "2013-07-07",
+                             "2013-09-07", "2013-03-30", "2013-07-14"]
         return self
 
     def transform(self, x, y=None):
         x.index = pd.to_datetime(x.index)
-        days_to_drop = ["2013-10-27", "2013-10-28", "2013-12-18", "2013-12-19",
-                             "2013-08-01", "2013-08-02", "2013-11-10", "2013-07-07",
-                             "2013-09-07", "2013-03-30", "2013-07-14"]
         try:
             x.drop(['Unnamed: 9', 'visibility', 'humidity', 'humidex', 'windchill', 'wind', 'pressure'],
                    axis=1, 
                    inplace=True)
-            #for day in days_to_drop:
-            #    x.drop(x.loc[day].index, inplace=True)
+            for day in self.days_to_drop:
+                x.drop(x.loc[day].index, inplace=True)
         except KeyError as e:
             pass
 
@@ -449,23 +450,22 @@ class YImputer(BaseEstimator, TransformerMixin):
         pass
 
     def fit(self, x, y=None):
+        self.days_to_drop = ["2013-10-27", "2013-10-28", "2013-12-18", "2013-12-19",
+                     "2013-08-01", "2013-08-02", "2013-11-10", "2013-07-07",
+                     "2013-09-07", "2013-03-30", "2013-07-14"]
         return self
     
     def transform(self, x, y=None):
         x.index = pd.to_datetime(x.index)
         try:
-            x.drop(['kettle', 'TV', 'washing_machine'], axis=1, inplace=True)
+#             x.drop(['kettle', 'TV', 'washing_machine'], axis=1, inplace=True)
+            for day in self.days_to_drop:
+                x.drop(x.loc[day].index, inplace=True)
         except KeyError as e:
             pass
-        days_to_drop = ["2013-10-27", "2013-10-28", "2013-12-18", "2013-12-19", 
-                "2013-08-01", "2013-08-02", "2013-11-10", "2013-07-07", 
-                "2013-09-07", "2013-03-30", "2013-07-14"]
         
-        #for day in days_to_drop:
-        #    x.drop(x.loc[day].index, inplace=True)
         x = x.interpolate(method='linear').fillna(method='bfill')
         return x
-
 ```
 
 - A **standard scaler** that standardizes features by removing the mean and scaling to unit variance and returns them as a dataframe.
@@ -623,7 +623,6 @@ class DataAugmenter_Washing_Machine(BaseEstimator, TransformerMixin):
         x = x.ffill().bfill()
         
         return x
-
 ```
 
 For the washing machine, we decided to add the feature **is_night** because people tend to operate the washing machine during the night as we saw in our EDA.
@@ -675,11 +674,6 @@ We also decided to add two **rolling means** one over a window of 10 min and the
 ### 3. TV
 
 ```python
-from sklearn.base import BaseEstimator, TransformerMixin
-import holidays
-import pandas as pd
-
-
 class DataAugmenter_TV(BaseEstimator, TransformerMixin):
 
     def __init__(self):
@@ -730,11 +724,6 @@ For the TV, we add a feature **is_TVtime**, which indicates that the hour is bet
 ### 4. Kettle
 
 ```python
-from sklearn.base import BaseEstimator, TransformerMixin
-import holidays
-import pandas as pd
-
-
 class DataAugmenter_kettle(BaseEstimator, TransformerMixin):
 
     def __init__(self):
@@ -885,6 +874,7 @@ In the very beginning, we were using the RMSE as a loss to fit our models. But, 
 
 ```python
 import tensorflow as tf
+
 @tf.function
 def metric_nilm(self, y_true, y_pred):
     y_pred = tf.reshape(y_pred, [tf.shape(y_pred)[0] * tf.shape(y_pred)[1], tf.shape(y_pred)[2]])
@@ -916,6 +906,43 @@ Using this function, we were able to optimize the network for our specific probl
 
 
 ## VII. Second approach :Convolutional Neural Networks
+
+
+The idea to use CNN came up after we asked ourselves the following question:  
+"*How can we develop a model which takes into account present and future values of consumption, centered around the current time step?*"  
+Therefore, we decided to structure our data as follows:
+
+Consumption,	y  
+10, 20, 30		40  
+20, 30, 40		50  
+30, 40, 50		60  
+...
+
+
+Our CNN model will learn a function that maps a sequence of past and future observations as input to an output observation. As such, the sequence of observations must be transformed into multiple samples from which the model can learn.  
+We can divide the sequence into multiple input/output patterns, where `batch_size` time steps are used as input and one time step is used as output.
+
+```python
+class RNNDataFormatter(BaseEstimator, TransformerMixin):
+    
+    def __init__(self, batch_size=120):
+        self.X = None
+        self.batch_size = batch_size
+    
+    def fit(self, x, y=None):
+        return self
+    
+    def transform(self, x, y=None):
+        
+        xx = np.zeros((x.shape[0], self.batch_size, 1))
+        x = np.pad(x, ((self.batch_size//2, self.batch_size//2), (0,0)), 'mean')
+        for i in range(len(xx)):
+            try:
+                xx[i, :, :] = x[i:self.batch_size+i, :]
+            except:
+                print(i)
+        return xx
+```
 
 ```python
 ## TO DO
@@ -1025,3 +1052,10 @@ nilm_metric(y_val, pred)
 ```
 
 PS: submissions on the platform were made under two user names guillaume.le-fur & LeonardoNatale and Abdou.Lazraq.
+
+
+## XI. References
+
+```python
+# TO DO
+```
