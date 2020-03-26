@@ -384,44 +384,6 @@ tv[tv > 20]
 
 Regarding the television, we can see that it is most of the time on for either a very short time (it appears that people like to watch TV during a time which is a multiple of 3), or one which is around 150 minutes, which is approximately **two hours and a half, which is the duration of a movie + the duration of the commercial breaks**.
 
-```python
-X_mean = X_train[['consumption']].copy()
-c0 = X_mean.index.to_series().between('2013-03-17T00:00:00', '2013-03-17T6:0:00')
-X_mean = X_mean[c0]
-X_mean['m'] = X_mean.consumption.rolling(10).mean().fillna(method="bfill")
-X_mean['s'] = X_mean.consumption.rolling(10).std().fillna(method="bfill")
-
-plt.figure(figsize=(15, 8))
-plt.plot(
-    X_mean.index.values,
-    X_mean.m.values,
-    label = "consumption",
-    color='navy'
-)
-plt.errorbar(
-    X_mean.index.values,
-    X_mean.m.values,
-    yerr=X_mean.s.values,
-    elinewidth=1,
-    linestyle='', 
-    alpha = 0.5,
-    color='lightsteelblue',
-    label='std'
-)
-plt.legend()
-plt.show()
-```
-
-```python
-from ipywidgets import interactive
-Y_perc = Y_train.groupby(X_perc.index.hour).mean()
-Y_perc.div(Y_perc.sum(axis=1), axis=0)
-
-def plot_pie(hour):
-    Y_perc.loc[hour, :].plot.pie()
-    
-interactive(plot_pie, hour= (0, 23))
-```
 
 ## III. Data preprocessing
 
@@ -1107,6 +1069,50 @@ However, the model fails to predict consumption for **kettle** due to the high s
 For our third attempt, we tried fitting four different regressors - one for each appliance. The goal is to see if we can outperform deep learning methods for some of the appliances, especially kettle for which CNN does not give good results, using classical machine learning methods. 
 
 We chose **XGBoost** which has been used to win many data challenges, outperforming several other well-known implementations of gradient tree boosting.
+
+
+### Detecting large variations
+
+```python
+X_mean = X_train[['consumption']].copy()
+Y_mean = Y_train[['kettle']].copy()
+X_mean = X_mean.join(Y_mean)
+c0 = X_mean.index.to_series().between('2013-03-17T14:00:00', '2013-03-17T20:0:00')
+X_mean = X_mean[c0]
+X_mean['mc'] = X_mean.consumption.rolling(10).mean().fillna(method="bfill")
+X_mean['sc'] = X_mean.consumption.rolling(10).std().fillna(method="bfill")
+X_mean['mk'] = X_mean.kettle.rolling(10).mean().fillna(method="bfill")
+X_mean['sk'] = X_mean.kettle.rolling(10).std().fillna(method="bfill")
+
+plt.figure(figsize=(15, 8))
+plt.plot(
+    X_mean.index.values,
+    X_mean.mc.values,
+    label = "consumption",
+    color='navy'
+)
+plt.errorbar(
+    X_mean.index.values,
+    X_mean.mc.values,
+    yerr=X_mean.sc.values,
+    elinewidth=1,
+    linestyle='', 
+    alpha = 0.5,
+    color='lightsteelblue',
+    label='consumption-std'
+)
+plt.plot(
+    X_mean.index.values,
+    X_mean.kettle.values,
+    label = "kettle",
+    color='darkred'
+)
+plt.title("Rolling mean and standard deviation for total consumption and kettle")
+plt.legend()
+plt.show()
+```
+
+We can see on the graph above that the appliance responsible for the **sharpest variations is the kettle**. Indeed, it is turned on for a very short time but consumes a lot of electricity, so these variations are extremely hard to learn and detect with a CNN. This is the main reason why we want to try **Extreme Gradient Boosting** in order to detect more subtle changes in the consumption.
 
 
 ### Preprocessing Pipelines
