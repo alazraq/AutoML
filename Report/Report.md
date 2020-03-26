@@ -557,8 +557,8 @@ class MyStandardScaler(BaseEstimator, TransformerMixin):
 
 The third step is different depending on the ML approach considred:
 - **For XGBoost:** A **data augmenter** for feature engineering. We implemented a different data augmenter for each appliance, we inspect those in detail in the following section.
-- **For CNN:** A **CNN data formatter** to make the imput data compatible with CNN
-- **For RNN:** An **RNN data augmenter** for feature engineering, a **One Hot Encoder** and an **RNN data formatter** to make the imput data compatible with RNN
+- **For CNN:** A **CNN data formatter** to make the imput data compatible with CNN.
+- **For RNN:** An **RNN data augmenter** for feature engineering, a **One Hot Encoder** and an **RNN data formatter** to make the imput data compatible with RNN.
 
 These are discussed further in the report.
 
@@ -1111,7 +1111,7 @@ We chose **XGBoost** which has been used to win many data challenges, outperform
 
 ### Preprocessing Pipelines
 For each appliance, we preprocess the data using the pipeline defined in section 3. The only difference between the pipelines of each appliance are the data augmenters:
-- **Lag features and the rolling means** are used in all augmenters to transform the time series forecasting problem into a supervised learning problem. Different lags and rolling means have been used for each appliance according to its specifities.
+- **Lag features and the rolling means** are used to get more information about the past and the future. Different lags and rolling means have been used for each appliance according to its specifities.
 - **Other features specific to each appliance** are added like is_TVtime, is_night, is_breakfast and is_teatime
 
 Please refer to section IV on feature engineering for more details about this part. We give the pipeline fot TV as an example, pipelines for the other appliances are defined in a similar fashion using the corresponding data augmenter defined above.
@@ -1145,6 +1145,7 @@ def nilm_metric(y_true, y_pred):
 ```
 
 ### Model Definition and Fitting
+We fit 4 different regressors, one for each appliance, using the custum nilm_metriv defined above.
 
 ```python
 # Fitting an XGBoost regressor
@@ -1156,7 +1157,55 @@ xgb_reg.fit(x_train, y_train,
            )
 ```
 
-We were able to achieve a better prediction for kettle using XGB. But CNN provided better results for the other appliances.
+### Feature Importance
+
+
+Let's look at the most important features identifird by XGB for kettle for example:
+
+```python
+importances = xgb_reg.feature_importances_
+indices = np.argsort(importances)[::-1]
+indices = indices[:15]
+
+# Print the feature ranking
+print("Feature ranking:")
+for f in range(len(indices)):
+    print("%d. %s (%f)" % (f + 1, X.columns[indices[f]], importances[indices[f]]))
+
+# Plot the feature importances of the name
+plt.title("Feature importances")
+plt.bar(range(len(indices)), importances[indices], color="r", align="center")
+plt.xticks(range(len(indices)), indices)
+plt.xlim([-1, len(indices)])
+plt.show()
+```
+
+Feature ranking:
+1. is_breakfast (0.144821)
+2. lag_10 (0.131271)
+3. consumption (0.120324)
+4. lag_future_2 (0.100311)
+5. lag_future_1 (0.035501)
+6. hour_mean (0.035224)
+7. lag_3 (0.034047)
+8. lag_2 (0.033974)
+9. lag_future_5 (0.032470)
+10. rolling_mean_-5 (0.030139)
+11. lag_future_4 (0.029670)
+12. lag_future_3 (0.028952)
+13. lag_20 (0.028152)
+14. lag_1 (0.027947)
+15. lag_5 (0.026906)
+
+```python
+%%HTML
+<img src="imp.png" style="height:600px">
+```
+
+From the features importance graph, we can clearly see that four features seem to be way more important than the others among which: is_breakfast as expected since it indicates when people use kettle the most, consumption and two lag variables.
+
+
+**XGB Result:** We were able to achieve a better prediction for kettle using XGB. But CNN provided better results for the other appliances.
 
 
 ## IX. Results and benchmark - Conclusion

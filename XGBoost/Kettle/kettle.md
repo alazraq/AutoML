@@ -138,14 +138,11 @@ plot_pred(true, pred)
 
 ```python
 importances = xgb_reg.feature_importances_
-#std = np.std([tree.feature_importances_ for tree in name.estimators_], axis=0)
-# add yerr = std yadda yadda in plt bar in case you need this
 indices = np.argsort(importances)[::-1]
 indices = indices[:15]
 
 # Print the feature ranking
 print("Feature ranking:")
-
 for f in range(len(indices)):
     print("%d. %s (%f)" % (f + 1, X.columns[indices[f]], importances[indices[f]]))
 
