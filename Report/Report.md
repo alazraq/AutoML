@@ -426,19 +426,33 @@ interactive(plot_pie, hour= (0, 23))
 ## III. Data preprocessing
 
 
-We define two pipelines for the input dataset, one for each ML approach we attempted to make data compatible with it. 
-
-
-### 1. Pipelines adapted to XGBoost
+We define multiple pipelines for the input dataset in order to make the data compatible with the ML approach used:
+- one pipeline for RNN
+- one pipeline for CNN
+- 4 pipelines for XGB, one per appliance
 
 ```python
-class XPipeline_XGB:
+class XPipeline:
     """Pipeline for the features of the input dataset of xgboost model"""
     def __init__(self):
         self.pipeline = Pipeline([
+            # Step 1
             ('DataImputer', DataImputer()),
+            
+            # Step 2
             ('MyStandardScaler', MyStandardScaler()),
-            ('DataAugmenter', DataAugmenter_TV()),
+            
+            # Step 3
+            # FOR XGB
+            ('DataAugmenter', DataAugmenter_TV()), # Different Data Augmenter per appliance
+            
+            # FOR RNN
+            ('RNNDataAugmenter', RNNDataAugmenter()), # Same Data Augmenter for all 4 appliances
+            ('MyOneHotEncoder', MyOneHotEncoder()),
+            ('RNNDataFormatter', RNNDataFormatter())
+            
+            # FOR CNN 
+            ('CNNDataFormatter', CNNDataFormatter()),           
         ])
 
     def fit(self, x):
@@ -447,7 +461,7 @@ class XPipeline_XGB:
     def transform(self, x):
         return self.pipeline.transform(x)
     
-class YPipeline_XGB:
+class YPipeline:
     """Pipeline for the target of the input dataset of xgboost model"""
     def __init__(self):
         self.pipeline = Pipeline([
@@ -461,10 +475,36 @@ class YPipeline_XGB:
         return self.pipeline.transform(x)
 ```
 
-There are three steps in this pipeline:
+The YPipeline is the same for all ML approaches and includes a single step: an imputer that drops days where we have more than one successive hour of missing data as explained above, interpolate missing values linearly for the rest and sets the date as the index.
+
+```python
+class YImputer(BaseEstimator, TransformerMixin):
+    
+    def __init__(self):
+        pass
+
+    def fit(self, x, y=None):
+        self.days_to_drop = ["2013-10-27", "2013-10-28", "2013-12-18", "2013-12-19",
+                     "2013-08-01", "2013-08-02", "2013-11-10", "2013-07-07",
+                     "2013-09-07", "2013-03-30", "2013-07-14"]
+        return self
+    
+    def transform(self, x, y=None):
+        x.index = pd.to_datetime(x.index)
+        try:
+            for day in self.days_to_drop:
+                x.drop(x.loc[day].index, inplace=True)
+        except KeyError as e:
+            pass
+        
+        x = x.interpolate(method='linear').fillna(method='bfill')
+        return x
+```
+
+There are three steps in the XPipeline, the first two steps are shared between all three ML approaches:
 
 
-- A **DataImputer** and **YImputer** that drop the unuseful columns, drop days where we have more than one successive hour of missing data as explained above, interpolate missing values linearly for the rest and sets the date as the index.
+- A **DataImputer** that drops the unuseful columns, and performs the same operations as the YImputer
 
 ```python
 class DataImputer(BaseEstimator, TransformerMixin):  
@@ -491,29 +531,6 @@ class DataImputer(BaseEstimator, TransformerMixin):
 
         x = x.interpolate(method='linear').fillna(method='bfill')
         return x
-    
-class YImputer(BaseEstimator, TransformerMixin):
-    
-    def __init__(self):
-        pass
-
-    def fit(self, x, y=None):
-        self.days_to_drop = ["2013-10-27", "2013-10-28", "2013-12-18", "2013-12-19",
-                     "2013-08-01", "2013-08-02", "2013-11-10", "2013-07-07",
-                     "2013-09-07", "2013-03-30", "2013-07-14"]
-        return self
-    
-    def transform(self, x, y=None):
-        x.index = pd.to_datetime(x.index)
-        try:
-#             x.drop(['kettle', 'TV', 'washing_machine'], axis=1, inplace=True)
-            for day in self.days_to_drop:
-                x.drop(x.loc[day].index, inplace=True)
-        except KeyError as e:
-            pass
-        
-        x = x.interpolate(method='linear').fillna(method='bfill')
-        return x
 ```
 
 - A **standard scaler** that standardizes features by removing the mean and scaling to unit variance and returns them as a dataframe.
@@ -538,14 +555,19 @@ class MyStandardScaler(BaseEstimator, TransformerMixin):
         return X
 ```
 
-- A **data augmenter** for feature engineering. We implemented a different data augmenter for each appliance, we inspect those in detail in the following section.
+The third step is different depending on the ML approach considred:
+- **For XGBoost:** A **data augmenter** for feature engineering. We implemented a different data augmenter for each appliance, we inspect those in detail in the following section.
+- **For CNN:** A **CNN data formatter** to make the imput data compatible with CNN
+- **For RNN:** An **RNN data augmenter** for feature engineering, a **One Hot Encoder** and an **RNN data formatter** to make the imput data compatible with RNN
+
+These are discussed further in the report.
 
 
 ##  IV. Feature engineering by appliance
 
 For each appliance we produced additional features that aim at increasing the predictive power of the machine learning algorithms used by creating features from the raw data that help facilitate the machine learning process for that specific appliance. These follow from the data exploration in section II and include weekday, is_weekend and is_holidays which accounts for French national holidays.
 
-The most important features that we identified to transform the time series forecasting problem into a supervised learning problem are the lag features and the rolling mean. Here we focus on the different lags and rolling means used for each appliance, as well as other features specific to each appliance.
+For XGB regression, the most important features that we identified to transform the time series forecasting problem into a supervised learning problem are the lag features and the rolling mean. Here we focus on the different lags and rolling means used for each appliance, as well as other features specific to each appliance.
 
 
 ### 1. Washing machine
@@ -603,7 +625,6 @@ For the washing machine, we decided to add the feature **is_night** because peop
 
 ```python
 class DataAugmenter_Fridge_Freezer(BaseEstimator, TransformerMixin):
-
     def __init__(self):
         pass
 
@@ -803,7 +824,7 @@ class RNNDataFormatter(BaseEstimator, TransformerMixin):
 As the RNN will be working on all the variables to predict, we only use one `DataAugmenter`, which adds the same features as prevously.
 
 ```python
-class DataAugmenter(BaseEstimator, TransformerMixin):
+class RNNDataAugmenter(BaseEstimator, TransformerMixin):
     """RNN DataAugmenter"""
     
     def __init__(self):
@@ -873,7 +894,7 @@ class XPipeline_RNN:
         self.pipeline = Pipeline([
             ('DataImputer', DataImputer()), # Imputing the data.
             ('MyStandardScaler', MyStandardScaler()), # Scaling it.
-            ('DataAugmenter', DataAugmenter()), # Adding features.
+            ('RNNDataAugmenter', RNNDataAugmenter()), # Adding features.
             ('MyOneHotEncoder', MyOneHotEncoder()), # Encoding features
             ('RNNDataFormatter', RNNDataFormatter()) # Formatting the data correctly.
     ])
@@ -1083,46 +1104,37 @@ However, the model fails to predict consumption for **kettle** due to the high s
 ## VIII. Third approach : ensemble methods - Boosting
 
 
-For our third attempt, we tried fitting four different regressors - one for each appliance. We chose **XGBoost** which has been used to win many data challenges, outperforming several other well-known implementations of gradient tree boosting. 
+For our third attempt, we tried fitting four different regressors - one for each appliance. The goal is to see if we can outperform deep learning methods for some of the appliances, especially kettle for which CNN does not give good results, using classical machine learning methods. 
+
+We chose **XGBoost** which has been used to win many data challenges, outperforming several other well-known implementations of gradient tree boosting.
 
 
-1. We load the data and preprocess it using the pipeline XPipeline_XGB defined in section 3.
+### Preprocessing Pipelines
+For each appliance, we preprocess the data using the pipeline defined in section 3. The only difference between the pipelines of each appliance are the data augmenters:
+- **Lag features and the rolling means** are used in all augmenters to transform the time series forecasting problem into a supervised learning problem. Different lags and rolling means have been used for each appliance according to its specifities.
+- **Other features specific to each appliance** are added like is_TVtime, is_night, is_breakfast and is_teatime
 
-```python
-# Load data and set time_step as index
-X_train = pd.read_csv(
-    '../provided_data_and_metric/X_train_6GWGSxz.csv',
-)
-X_train.set_index("time_step", inplace=True)
-Y_train = pd.read_csv(
-    '../provided_data_and_metric/y_train_2G60rOL.csv',
-)
-Y_train.set_index("time_step", inplace=True)
-X_test = pd.read_csv(
-    '../provided_data_and_metric/X_test_c2uBt2s.csv',
-)
-X_test.set_index("time_step", inplace=True)
-
-# Apply XPipeline_XGB and YPipeline_XGB define above 
-px = XPipeline_XGB()
-py = YPipeline_XGB()
-print('Start of first transform')
-X = px.fit(X_train)
-X = px.transform(X_train)
-print('End of first transform')
-print('Start of second transform')
-y = py.fit(Y_train)
-y = py.transform(Y_train)
-print('End of second transform')
-```
-
-2. We split the data into train and test datasets.
+Please refer to section IV on feature engineering for more details about this part. We give the pipeline fot TV as an example, pipelines for the other appliances are defined in a similar fashion using the corresponding data augmenter defined above.
 
 ```python
-x_train, x_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=49)
+class XPipeline_TV:
+
+    def __init__(self):
+        self.pipeline = Pipeline([
+            ('DataImputer', DataImputer()),
+            ('MyStandardScaler', MyStandardScaler()),
+            ('DataAugmenter_TV', DataAugmenter()),
+        ])
+
+    def fit(self, x):
+        return self.pipeline.fit(x)
+
+    def transform(self, x):
+        return self.pipeline.transform(x)
 ```
 
-3. We define custum nilm metric based on the metric provided, but for the individual appliance.
+### Custom metric per appliance
+In order to be able to fit a different regressor for each appliance, we had to define a custom metric inspired from the metric provided, where we only keep the score corresponding to the specific appliance we are considering.
 
 ```python
 # Custom nilm metric in case of fridge for example
@@ -1132,7 +1144,7 @@ def nilm_metric(y_true, y_pred):
         return "nilm", score
 ```
 
-4. Fit the model and look at the most important features.
+### Model Definition and Fitting
 
 ```python
 # Fitting an XGBoost regressor
@@ -1142,34 +1154,10 @@ xgb_reg.fit(x_train, y_train,
             eval_set=[(x_val, y_val)],
             eval_metric=nilm_metric,
            )
-
-# Feature importance
-importances = xgb_reg.feature_importances_
-indices = np.argsort(importances)[::-1]
-indices = indices[:15]
-print("Feature ranking:")
-for f in range(len(indices)):
-    print("%d. %s (%f)" % (f + 1, X.columns[indices[f]], importances[indices[f]]))
 ```
 
-5. Evaluate performance.
+We were able to achieve a better prediction for kettle using XGB. But CNN provided better results for the other appliances.
 
-```python
-# Plotting true value vs prediction
-def plot_pred(true, pred):
-    sns.set(rc={'figure.figsize':(8, 8)})
-    ax = sns.scatterplot(x=true, y=pred)
-    ax.set(xlabel='true', ylabel='predicted', xlim=(-5, 250), ylim=(-60, 250))
-    plt.show()
-    
-pred_val = xgb_reg.predict(x_val)
-true = y_val.fridge_freezer
-plot_pred(true, pred_val)
-
-# Performance using custom nilm metric
-plt.bar(range(len(indices)), importances[indices], color="r", align="center")
-nilm_metric(y_val, pred)
-```
 
 ## IX. Results and benchmark - Conclusion
 
@@ -1228,7 +1216,7 @@ The sparsity of the data was also interesting, and we would haveliked to dedicat
 PS: submissions on the platform were made under two user names guillaume.le-fur & LeonardoNatale and Abdou.Lazraq.
 
 
-## XI. References
+## X. References
 
 ```python
 # TO DO
