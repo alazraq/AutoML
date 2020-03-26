@@ -95,14 +95,14 @@ We initially have 9 predictors and 4 variables to predict. This data is a time s
 
 ### Missing values
 
-Let's have a look at the missing values.
+Let us have a look at the missing values.
 
 ```python
 X_train.isna().sum()
 ```
 
 Remarks:
-- We notice that the weather data is measured every hour, whereas the consumption data is measured every minute, so we have a lot of **sparsity from the weather data**. Depending on the algorithm, we'll either try to impute these missing values (see `DataImputer` classes), or discard the weather data because we think it's not relevant.
+- We notice that the weather data is measured every hour, whereas the consumption data is measured every minute, so we have a lot of **sparsity from the weather data**. Depending on the algorithm, we will either try to impute these missing values (see `DataImputer` classes), or discard the weather data because we think it is not relevant.
 - Regarding the consumption data, in order to see if the NaNs could be imputed or not, we tried to see if there were a lot of **consecutive NaNs**. The following table shows the number of NaNs that are consecutive, and that last for more than an hour.
 
 ```python
@@ -120,7 +120,7 @@ cons60 = round(consecutive[consecutive > 60].sum()/X_train.consumption.isna().su
 print(f'Percentage of consecutives (> 1 hour) : {cons60} %\nPercentage of consecutive (> 10 min) : {cons10} %\nTotal percentage for consecutives : {cons1} %')
 ```
 
-Given this information, we chose to **discard** all the consecutive missing values that last more than one hour because imputation wouldn't have produced satisfactory results.
+Given this information, we chose to **discard** all the consecutive missing values that last more than one hour because imputation would not have produced satisfactory results.
 
 ```python
 Y_train.isna().sum()
@@ -185,14 +185,14 @@ ax.legend(loc='upper left')
 f.canvas.draw()
 ```
 
-On the graph above, we can clearly see that the overall consumption trend does not correspond to any per-appliance trend. Indeed, we can observe two sharp declines (one around 2013-04-15, and another around 2013-08-10) that lead to an opposite effect on the per-appliance trends (on the first one, the per-appliance average drops, and on the second it raises). This makes it even harder to predict the per-appliance consumption as there is no clear link between them and the overall consumption.
+On the graph above, we can clearly see that the **overall consumption trend does not correspond to any per-appliance trend**. Indeed, we can observe two sharp declines (one around 2013-04-15, and another around 2013-08-10) that lead to an opposite effect on the per-appliance trends (on the first one, the per-appliance average drops, and on the second it raises). This makes it even harder to predict the per-appliance consumption as there is no clear link between them and the overall consumption.
 
-The difference between the consumtions can most probably be explained by the presence of other appliances in the house.
+The difference between the consumtions can most probably be explained by the presence of **other appliances in the house**.
 
-This means that predicting the consumption of the appliance and it's the percentage of its contribution to the total consumption is not the same problem.
+This means that predicting the consumption of the appliance and its contribution to the total consumption is not the same problem.
 
 
-Now let's have a look at some specificities of the data.
+Now let us have a look at some specificities of the data.
 
 
 ### Analysis of the predictors
@@ -244,7 +244,7 @@ The overall consumption is **higher during the weekend**, as expected.
 X_data_exploration[["consumption", "weekday"]].groupby("weekday").mean().plot()
 ```
 
-The consumption is also really **high on tuesday**. We couldn't find any justification for this
+The consumption is also really **high on tuesday**. We could not find any justification for this.
 
 
 **3. Difference between months**
@@ -296,7 +296,7 @@ Y_train.groupby(X_data_exploration.month).mean()
 Y_train.groupby(X_data_exploration.month).mean().plot()
 ```
 
-We detect a significant increase of the use of the **Kettle in November**, which also makes sense because it's one of the first 'cold' months so people start making tea again to warm themselves.
+We detect a significant increase of the use of the **Kettle in November**, which also makes sense because it is one of the first 'cold' months so people start making tea again to warm themselves.
 
 
 **3. Weekend influence per appliance**
@@ -305,7 +305,7 @@ We detect a significant increase of the use of the **Kettle in November**, which
 Y_train.groupby(X_data_exploration.is_weekend).mean()
 ```
 
-Once again, the use of the **washing machine on the weekend** is confirmed here. People tend to use their **kettle a bit more** as well. **We could have expected the consumption of the TV to be higher** on the weekend but it actually isn't.
+Once again, the use of the **washing machine on the weekend** is confirmed here. People tend to use their **kettle a bit more** as well. **We could have expected the consumption of the TV to be higher** on the weekend but it actually is not.
 
 
 **4. Hour influence per appliance**
@@ -318,7 +318,7 @@ From the plot above, we can extract the following informations:
     
 - People use their **TV in the morning**, really early, **and in the evening**, but not much after 11 p.m., after the main movie has finished.
 - People use their **kettle around teatime**, which is quite logical, but also a bit in the morining, **for breakfast**.
-- The consumption fo the **freezer doesn't vary much** during the day.
+- The consumption fo the **freezer does not vary much** during the day.
 - People tend to turn their **washing machine on when they go to bed**, once again to reduce the **cost of electricity**.
 
 
@@ -328,7 +328,7 @@ From the plot above, we can extract the following informations:
 Y_train.groupby(X_data_exploration.is_holidays).mean()
 ```
 
-**People don't use their washing machine on holidays, nor their kettle**. This makes sense becasue when people leave the house, thei appliances that consume a lot of electricity when used aren't used any longer so they stop consuming, while the appliances that consume an almost constant amount of electricity don't vary much because they keep working.
+**People do not use their washing machine on holidays, nor their kettle**. This makes sense becasue when people leave the house, the appliances that consume a lot of electricity when used are not used any longer so they stop consuming, while the appliances that consume an almost constant amount of electricity do not vary much because they keep working.
 
 
 For all these reasons, we thought it would be relevant to **add some features to the data**, to be able to predict the per-appliance consumption with more accuracy. This will be detailed further in this report.
@@ -340,7 +340,7 @@ For all these reasons, we thought it would be relevant to **add some features to
 **1. Kettle operating time**
 
 
-Usually, people don't use their Kettle for more than 5 minutes, the time for the water to boil. We want to check this.
+Usually, people do not use their Kettle for more than 5 minutes, the time for the water to boil. We want to check this.
 
 ```python
 ket = Y_train.kettle.fillna(0).where(Y_train.kettle.fillna(0) < 2)
@@ -763,7 +763,7 @@ We also add two features is_breafast (5 am to 9 am) and is_teatime (4 pm to 8 pm
 ## V. Baseline: MultiOutputRegressor
 
 
-Our first thought, in order to have an idea of what we could achieve with basic algorithms, was to try **Linear Regression** and **Random Forests**. 
+Our first thought, in order to have an idea of what we could achieve with basic algorithms, was to try **Linear Regression**. 
 
 By default, the LinearRegression of sklearn cannot predict multiple outputs. So, we used the **MultiOutputRegressor** of sklearn in order to wrap the linear regression. It acts as if it was fitting k differents linear regressions, one for each of the k variables to predict.
 
