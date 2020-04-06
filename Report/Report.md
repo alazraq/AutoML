@@ -394,7 +394,7 @@ We define multiple pipelines for the input dataset in order to make the data com
 - 4 pipelines for XGB, one per appliance
 
 ```python
-class XPipeline_XGB:
+class XPipeline:
     """Pipeline for the features of the input dataset"""
     def __init__(self):
         self.pipeline = Pipeline([
