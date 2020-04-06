@@ -6,7 +6,7 @@ jupyter:
       extension: .md
       format_name: markdown
       format_version: '1.2'
-      jupytext_version: 1.4.2
+      jupytext_version: 1.3.3
   kernelspec:
     display_name: Python 3
     language: python
@@ -38,7 +38,7 @@ jupyter:
 ---
 
 
-Let's first import all the libraries we use in this project:
+Let us first import all the libraries we use in this project:
 
 ```python
 import pandas as pd
@@ -96,14 +96,14 @@ We initially have 9 predictors and 4 variables to predict. This data is a time s
 
 ### Missing values
 
-Let's have a look at the missing values.
+Let us have a look at the missing values.
 
 ```python
 X_train.isna().sum()
 ```
 
 Remarks:
-- We notice that the weather data is measured every hour, whereas the consumption data is measured every minute, so we have a lot of **sparsity from the weather data**. Depending on the algorithm, we'll either try to impute these missing values (see `DataImputer` classes), or discard the weather data because we think it's not relevant.
+- We notice that the weather data is measured every hour, whereas the consumption data is measured every minute, so we have a lot of **sparsity from the weather data**. Depending on the algorithm, we will either try to impute these missing values (see `DataImputer` classes), or discard the weather data because we think it is not relevant.
 - Regarding the consumption data, in order to see if the NaNs could be imputed or not, we tried to see if there were a lot of **consecutive NaNs**. The following table shows the number of NaNs that are consecutive, and that last for more than an hour.
 
 ```python
@@ -121,7 +121,7 @@ cons60 = round(consecutive[consecutive > 60].sum()/X_train.consumption.isna().su
 print(f'Percentage of consecutives (> 1 hour) : {cons60} %\nPercentage of consecutive (> 10 min) : {cons10} %\nTotal percentage for consecutives : {cons1} %')
 ```
 
-Given this information, sometimes we have chosen to **discard** all the consecutive missing values that last more than one hour because imputation would have not have produced satisfactory results.
+Given this information, chose to **discard** all the consecutive missing values that last more than one hour because imputation would not have produced satisfactory results.
 
 ```python
 Y_train.isna().sum()
@@ -185,14 +185,14 @@ ax.legend(loc='upper left')
 f.canvas.draw()
 ```
 
-On the graph above, we can clearly see that the overall consumption trend does not correspond to any per-appliance trend. Indeed, we can observe two sharp declines (one around 2013-04-15, and another around 2013-08-10) that lead to an opposite effect on the per-appliance trends (on the first one, the per-appliance average drops, and on the second it raises). This makes it even harder to predict the per-appliance consumption as there is no clear link between them and the overall consumption.
+On the graph above, we can clearly see that **the overall consumption trend does not correspond to any per-appliance trend**. Indeed, we can observe two sharp declines (one around 2013-04-15, and another around 2013-08-10) that lead to an opposite effect on the per-appliance trends (on the first one, the per-appliance average drops, and on the second it raises). This makes it even harder to predict the per-appliance consumption as there is no clear link between them and the overall consumption.
 
-The difference between the consumtions can most probably be explained by the presence of other appliances in the house.
+The difference between the consumtions can most probably be explained by the **presence of other appliances in the house**.
 
-This means that predicting the consumption of the appliance and it's the percentage of its contribution to the total consumption is not the same problem.
+This means that predicting the consumption of the appliance and its contribution to the total consumption is not the same problem.
 
 
-Now let's have a look at some specificities of the data.
+Now let us have a look at some specificities of the data.
 
 
 ### Analysis of the predictors
@@ -244,7 +244,7 @@ The overall consumption is **higher during the weekend**, as expected.
 X_data_exploration[["consumption", "weekday"]].groupby("weekday").mean().plot()
 ```
 
-The consumption is also really **high on tuesday**. We could not find any justification for this
+The consumption is also really **high on tuesday**. We could not find any justification for this.
 
 
 **3. Difference between months**
@@ -296,7 +296,7 @@ Y_train.groupby(X_data_exploration.month).mean()
 Y_train.groupby(X_data_exploration.month).mean().plot()
 ```
 
-We detect a significant increase of the use of the **Kettle in November**, which also makes sense because it's one of the first 'cold' months so people start making tea again to warm themselves.
+We detect a significant increase of the use of the **Kettle in November**, which also makes sense because it is one of the first 'cold' months so people start making tea again to warm themselves.
 
 
 **3. Weekend influence per appliance**
@@ -318,7 +318,7 @@ From the plot above, we can extract the following informations:
     
 - People use their **TV in the morning**, really early, **and in the evening**, but not much after 11 p.m., after the main movie has finished.
 - People use their **kettle around teatime**, which is quite logical, but also a bit in the morining, **for breakfast**.
-- The consumption fo the **freezer doesn't vary much** during the day.
+- The consumption fo the **freezer does not vary much** during the day.
 - People tend to turn their **washing machine on when they go to bed**, once again to reduce the **cost of electricity**.
 
 
@@ -328,7 +328,7 @@ From the plot above, we can extract the following informations:
 Y_train.groupby(X_data_exploration.is_holidays).mean()
 ```
 
-**People do not use their washing machine on holidays, nor their kettle**. This makes sense becasue when people leave the house, thei appliances that consume a lot of electricity when used are not used any longer so they stop consuming, while the appliances that consume an almost constant amount of electricity do not vary much because they keep working.
+**People do not use their washing machine on holidays, nor their kettle**. This makes sense becasue when people leave the house, the appliances that consume a lot of electricity when used are not used any longer so they stop consuming, while the appliances that consume an almost constant amount of electricity do not vary much because they keep working.
 
 
 For all these reasons, we thought it would be relevant to **add some features to the data**, to be able to predict the per-appliance consumption with more accuracy. This will be detailed further in this report.
@@ -384,61 +384,37 @@ tv[tv > 20]
 
 Regarding the television, we can see that it is most of the time on for either a very short time (it appears that people like to watch TV during a time which is a multiple of 3), or one which is around 150 minutes, which is approximately **two hours and a half, which is the duration of a movie + the duration of the commercial breaks**.
 
-```python
-X_mean = X_train[['consumption']].copy()
-c0 = X_mean.index.to_series().between('2013-03-17T00:00:00', '2013-03-17T6:0:00')
-X_mean = X_mean[c0]
-X_mean['m'] = X_mean.consumption.rolling(10).mean().fillna(method="bfill")
-X_mean['s'] = X_mean.consumption.rolling(10).std().fillna(method="bfill")
-
-plt.figure(figsize=(15, 8))
-plt.plot(
-    X_mean.index.values,
-    X_mean.m.values,
-    label = "consumption",
-    color='navy'
-)
-plt.errorbar(
-    X_mean.index.values,
-    X_mean.m.values,
-    yerr=X_mean.s.values,
-    elinewidth=1,
-    linestyle='', 
-    alpha = 0.5,
-    color='lightsteelblue',
-    label='std'
-)
-plt.legend()
-plt.show()
-```
-
-```python
-from ipywidgets import interactive
-Y_perc = Y_train.groupby(X_train.index.hour).mean()
-Y_perc.div(Y_perc.sum(axis=1), axis=0)
-
-def plot_pie(hour):
-    Y_perc.loc[hour, :].plot.pie()
-    
-interactive(plot_pie, hour= (0, 23))
-```
 
 ## III. Data preprocessing
 
 
-We define two pipelines for the input dataset, one for each ML approach we attempted to make data compatible with it. 
-
-
-### 1. Pipelines adapted to XGBoost
+We define multiple pipelines for the input dataset in order to make the data compatible with the ML approach used:
+- one pipeline for RNN
+- one pipeline for CNN
+- 4 pipelines for XGB, one per appliance
 
 ```python
 class XPipeline_XGB:
-    """Pipeline for the features of the input dataset of xgboost model"""
+    """Pipeline for the features of the input dataset"""
     def __init__(self):
         self.pipeline = Pipeline([
+            # Step 1
             ('DataImputer', DataImputer()),
+            
+            # Step 2
             ('MyStandardScaler', MyStandardScaler()),
-            ('DataAugmenter', DataAugmenter_TV()),
+            
+            # Step 3
+            # FOR XGB
+            ('DataAugmenter', DataAugmenter_TV()), # Different Data Augmenter per appliance
+            
+            # FOR RNN
+            ('RNNDataAugmenter', RNNDataAugmenter()), # Same Data Augmenter for all 4 appliances
+            ('MyOneHotEncoder', MyOneHotEncoder()),
+            ('RNNDataFormatter', RNNDataFormatter())
+            
+            # FOR CNN 
+            ('CNNDataFormatter', CNNDataFormatter())
         ])
 
     def fit(self, x):
@@ -447,7 +423,7 @@ class XPipeline_XGB:
     def transform(self, x):
         return self.pipeline.transform(x)
     
-class YPipeline_XGB:
+class YPipeline:
     """Pipeline for the target of the input dataset of xgboost model"""
     def __init__(self):
         self.pipeline = Pipeline([
@@ -461,21 +437,26 @@ class YPipeline_XGB:
         return self.pipeline.transform(x)
 ```
 
+The YPipeline is the same for all ML approaches and includes a single step: an imputer that drops days where we have more than one successive hour of missing data as explained above, interpolate missing values linearly for the rest and sets the date as the index.
+
+
 There are three steps in this pipeline:
 
 
 - A **DataImputer** and **YImputer** that drop the unuseful columns, drop days where we have more than one successive hour of missing data as explained above, interpolate missing values linearly for the rest and sets the date as the index.
 
 ```python
-class DataImputer(BaseEstimator, TransformerMixin):  
+class YImputer(BaseEstimator, TransformerMixin):  
 
     def __init__(self):
         self.X = None
+        self.days_to_drop = [
+            "2013-10-27", "2013-10-28", "2013-12-18", "2013-12-19",
+            "2013-08-01", "2013-08-02", "2013-11-10", "2013-07-07",
+            "2013-09-07", "2013-03-30", "2013-07-14"
+        ]
 
     def fit(self, x, y=None):
-        self.days_to_drop = ["2013-10-27", "2013-10-28", "2013-12-18", "2013-12-19",
-                             "2013-08-01", "2013-08-02", "2013-11-10", "2013-07-07",
-                             "2013-09-07", "2013-03-30", "2013-07-14"]
         return self
 
     def transform(self, x, y=None):
@@ -489,29 +470,6 @@ class DataImputer(BaseEstimator, TransformerMixin):
         except KeyError as e:
             pass
 
-        x = x.interpolate(method='linear').fillna(method='bfill')
-        return x
-    
-class YImputer(BaseEstimator, TransformerMixin):
-    
-    def __init__(self):
-        pass
-
-    def fit(self, x, y=None):
-        self.days_to_drop = ["2013-10-27", "2013-10-28", "2013-12-18", "2013-12-19",
-                     "2013-08-01", "2013-08-02", "2013-11-10", "2013-07-07",
-                     "2013-09-07", "2013-03-30", "2013-07-14"]
-        return self
-    
-    def transform(self, x, y=None):
-        x.index = pd.to_datetime(x.index)
-        try:
-#             x.drop(['kettle', 'TV', 'washing_machine'], axis=1, inplace=True)
-            for day in self.days_to_drop:
-                x.drop(x.loc[day].index, inplace=True)
-        except KeyError as e:
-            pass
-        
         x = x.interpolate(method='linear').fillna(method='bfill')
         return x
 ```
@@ -538,14 +496,19 @@ class MyStandardScaler(BaseEstimator, TransformerMixin):
         return X
 ```
 
-- A **data augmenter** for feature engineering. We implemented a different data augmenter for each appliance, we inspect those in detail in the following section.
+The third step is different depending on the ML approach considred:
+- **For XGBoost:** A **data augmenter** for feature engineering. We implemented a different data augmenter for each appliance, we inspect those in detail in the following section.
+- **For CNN:** A **CNN data formatter** to make the imput data compatible with CNN.
+- **For RNN:** An **RNN data augmenter** for feature engineering, a **One Hot Encoder** and an **RNN data formatter** to make the imput data compatible with RNN.
+
+These are discussed further in the report.
 
 
 ##  IV. Feature engineering by appliance
 
 For each appliance we produced additional features that aim at increasing the predictive power of the machine learning algorithms used by creating features from the raw data that help facilitate the machine learning process for that specific appliance. These follow from the data exploration in section II and include weekday, is_weekend and is_holidays which accounts for French national holidays.
 
-The most important features that we identified to transform the time series forecasting problem into a supervised learning problem are the lag features and the rolling mean. Here we focus on the different lags and rolling means used for each appliance, as well as other features specific to each appliance.
+For XGB regression, the most important features that we identified to transform the time series forecasting problem into a supervised learning problem are the lag features and the rolling mean. Here we focus on the different lags and rolling means used for each appliance, as well as other features specific to each appliance.
 
 
 ### 1. Washing machine
@@ -742,7 +705,7 @@ We also add two features is_breafast (5 am to 9 am) and is_teatime (4 pm to 8 pm
 ## V. Baseline: MultiOutputRegressor
 
 
-Our first thought, in order to have an idea of what we could achieve with basic algorithms, was to try **Linear Regression** and **Random Forests**. 
+Our first thought, in order to have an idea of what we could achieve with basic algorithms, was to try **Linear Regression**. 
 
 By default, the LinearRegression of sklearn cannot predict multiple outputs. So, we used the `MultiOutputRegressor` from sklearn in order to wrap the linear regression. It acts as if it was fitting k differents linear regressions, one for each of the k variables to predict.
 
@@ -803,7 +766,7 @@ class RNNDataFormatter(BaseEstimator, TransformerMixin):
 As the RNN will be working on all the variables to predict, we only use one `DataAugmenter`, which adds the same features as prevously.
 
 ```python
-class DataAugmenter(BaseEstimator, TransformerMixin):
+class RNNDataAugmenter(BaseEstimator, TransformerMixin):
     """RNN DataAugmenter"""
     
     def __init__(self):
@@ -873,7 +836,7 @@ class XPipeline_RNN:
         self.pipeline = Pipeline([
             ('DataImputer', DataImputer()), # Imputing the data.
             ('MyStandardScaler', MyStandardScaler()), # Scaling it.
-            ('DataAugmenter', DataAugmenter()), # Adding features.
+            ('RNNDataAugmenter', DataAugmenter()), # Adding features.
             ('MyOneHotEncoder', MyOneHotEncoder()), # Encoding features
             ('RNNDataFormatter', RNNDataFormatter()) # Formatting the data correctly.
     ])
@@ -1087,7 +1050,7 @@ All the code is found in the `/CNN` folder in our repository.
 ## VIII. Third approach : ensemble methods - Boosting
 
 
-For our third attempt, we tried fitting four different regressors - one for each appliance. We chose **XGBoost** which has been used to win many data challenges, outperforming several other well-known implementations of gradient tree boosting. 
+For our third attempt, we tried fitting four different regressors - one for each appliance. We chose **XGBoost** which has been used to win many data challenges, outperforming several other well-known implementations of gradient tree boosting.
 
 
 1. We load the data and preprocess it using the pipeline XPipeline_XGB defined in section 3.
@@ -1098,15 +1061,19 @@ X_train = pd.read_csv(
     '../provided_data_and_metric/X_train_6GWGSxz.csv',
 )
 X_train.set_index("time_step", inplace=True)
+X_train.index = pd.to_datetime(X_train.index)
 Y_train = pd.read_csv(
     '../provided_data_and_metric/y_train_2G60rOL.csv',
 )
 Y_train.set_index("time_step", inplace=True)
+Y_train.index = pd.to_datetime(Y_train.index)
 X_test = pd.read_csv(
     '../provided_data_and_metric/X_test_c2uBt2s.csv',
 )
 X_test.set_index("time_step", inplace=True)
+```
 
+```python
 # Apply XPipeline_XGB and YPipeline_XGB define above 
 px = XPipeline_XGB()
 py = YPipeline_XGB()
@@ -1120,7 +1087,33 @@ y = py.transform(Y_train)
 print('End of second transform')
 ```
 
-<<<<<<< HEAD
+```python
+X_mean = X_train[['consumption']].copy()
+c0 = X_mean.index.to_series().between('2013-03-17T00:00:00', '2013-03-17T6:0:00')
+X_mean = X_mean[c0]
+X_mean['m'] = X_mean.consumption.rolling(10).mean().fillna(method="bfill")
+X_mean['s'] = X_mean.consumption.rolling(10).std().fillna(method="bfill")
+plt.figure(figsize=(15, 8))
+plt.plot(
+    X_mean.index.values,
+    X_mean.m.values,
+    label = "consumption",
+    color='navy'
+)
+plt.errorbar(
+    X_mean.index.values,
+    X_mean.m.values,
+    yerr=X_mean.s.values,
+    elinewidth=1,
+    linestyle='', 
+    alpha = 0.5,
+    color='lightsteelblue',
+    label='std'
+)
+plt.legend()
+plt.show()
+```
+
 We can see on the graph above that the appliance responsible for the **sharpest variations is the kettle**. Indeed, it is turned on for a very short time but consumes a lot of electricity, so these variations are extremely hard to learn and detect with a CNN. This is the main reason why we want to try **Extreme Gradient Boosting** in order to detect more subtle changes in the consumption.
 
 
@@ -1130,15 +1123,14 @@ For each appliance, we preprocess the data using the pipeline defined in section
 - **Other features specific to each appliance** are added like is_TVtime, is_night, is_breakfast and is_teatime
 
 Please refer to section IV on feature engineering for more details about this part. We give the pipeline for TV as an example. Pipelines for the other appliances are defined in a similar fashion using the corresponding data augmenter defined above.
-=======
+
 2. We split the data into train and test datasets.
->>>>>>> 3b1da04246c7e3ec2d63cf3feea691e6cad4206d
 
 ```python
 x_train, x_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=49)
 ```
 
-3. We define custum nilm metric based on the metric provided, but for the individual appliance.
+3. We define custom nilm metric based on the metric provided, but for the individual appliance.
 
 ```python
 # Custom nilm metric in case of fridge for example
@@ -1148,12 +1140,11 @@ def nilm_metric(y_true, y_pred):
         return "nilm", score
 ```
 
-<<<<<<< HEAD
 ### Model Definition and Fitting
+
 We fit 4 different regressors, one for each appliance, using the custom nilm_metric defined above.
-=======
+
 4. Fit the model and look at the most important features.
->>>>>>> 3b1da04246c7e3ec2d63cf3feea691e6cad4206d
 
 ```python
 import xgboost as xgb
@@ -1245,13 +1236,11 @@ plt.show()
 This project was interesting and challenging on multiple aspects. It was the first time we had to deal with time series, which was a real challenge because it is a whole new paradigm: the data is now linked by their order and not only by the values of the variables.  
 We have also applied RNNs for the first time. They are complex to understand and require meticulous tuning in order to give satisfactory results. Data formatting and preparation is also a big part of the work on RNNs.
 
-<<<<<<< HEAD
 We also understood the interest of mixing models when there are multiple variables to predict, so that one can optimize the prediction for every variable.
 The sparsity of the data was also interesting, and we would have liked to dedicate more time to its study.
-=======
+
 Moreover, we have understood the interest of mixing models when there are multiple variables to predict, so that one can optimize the prediction for every variable.
 The sparsity required much attention too, and we would have liked to dedicate more time to its study.
->>>>>>> 3b1da04246c7e3ec2d63cf3feea691e6cad4206d
 
 
 PS: submissions on the platform were made under two user names `guillaume.le-fur & LeonardoNatale` and `Abdou.Lazraq`.
