@@ -6,7 +6,7 @@ jupyter:
       extension: .md
       format_name: markdown
       format_version: '1.2'
-      jupytext_version: 1.4.0
+      jupytext_version: 1.3.3
   kernelspec:
     display_name: Python 3
     language: python
@@ -171,6 +171,7 @@ X_data_exploration = add_features(X_train)
 **1. Weekend influence**
 
 ```python
+
 X_data_exploration[["consumption", "is_weekend"]].groupby("is_weekend").mean()
 ```
 
@@ -390,7 +391,7 @@ The YPipeline is the same for all ML approaches and includes a single step: an i
 There are three steps in this pipeline:
 
 
-- A **DataImputer** and **YImputer** that drop the unuseful columns, drop days where we have more than one successive hour of missing data as explained above, interpolate missing values linearly for the rest and sets the date as the index.
+- A **DataImputer** and **YImputer** that drops the unuseful columns, drops days where we have more than one successive hour of missing data, interpolates missing values linearly for the rest and sets the date as the index.
 
 ```python
 class YImputer(BaseEstimator, TransformerMixin):  
@@ -1005,7 +1006,7 @@ All the code is found in the `/CNN` folder in our repository.
 # Third approach : ensemble methods - Boosting
 
 
-For our third attempt, we tried fitting four different regressors - one for each appliance. The goal is to see if we can outperform deep learning methods for some of the appliances, especially kettle for which CNN does not give good results, using classical machine learning methods.
+For our third attempt, we tried fitting four different regressors - one for each appliance. The goal is to see if we can outperform deep learning methods for some of the appliances, especially kettle for which CNN does not give good results, using classic machine learning methods.
 
 We chose **XGBoost** which has been used to win many data challenges, outperforming several other well-known implementations of gradient tree boosting.
 
