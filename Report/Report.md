@@ -139,7 +139,6 @@ $$\sum_{a \in A} c_a \ne c_{tot}$$
 We can clearly see this on the following plot:
 
 ```python
-# HIDE CODE?
 X_weekly = X_train.iloc[:, :1].resample('W').mean()
 Y_weekly = Y_train.resample('W').mean()
 T_weekly = X_weekly.join(Y_weekly, on='time_step')
@@ -283,7 +282,7 @@ The consumption is **lower during the holidays**. Our analysis led us to believe
 Y_train.groupby(X_data_exploration.weekday).mean()
 ```
 
-We can see that people tend to use their **washing machine more on Sundays**, which is logical because they have more time on Sundays and **electricity is cheaper**. If we consider, as we did, that the houseis in France, people most likely beneficiate from the *Heures Creuses* rate.
+We can see that people tend to use their **washing machine more on Sundays**, which is logical because they have more time on Sundays and **electricity is cheaper**. If we consider, as we did, that the house is in France, people most likely beneficiate from the *Heures Creuses* rate.
 
 
 **2. Month influence per appliance**
@@ -1009,7 +1008,7 @@ The output will be of the size `(401759, 120, 1)`.
 ### Preprocessing Pipeline
 
 
-Before, the class `DataImputer` takes cares of missing values and drops all columns but consumption.  
+Before, the class `DataImputer` takes care of missing values and drops all columns but consumption.  
 Then the data is passed to a `Standard Scaler`, before being formatted as explained above.
 
 ```python
@@ -1120,7 +1119,7 @@ For each appliance, we preprocess the data using the pipeline defined in section
 - **Lag features and the rolling means** are used to get more information about the past and the future. Different lags and rolling means have been used for each appliance according to its specifities.
 - **Other features specific to each appliance** are added like is_TVtime, is_night, is_breakfast and is_teatime
 
-Please refer to section IV on feature engineering for more details about this part. We give the pipeline fot TV as an example, pipelines for the other appliances are defined in a similar fashion using the corresponding data augmenter defined above.
+Please refer to section IV on feature engineering for more details about this part. We give the pipeline for TV as an example. Pipelines for the other appliances are defined in a similar fashion using the corresponding data augmenter defined above.
 
 ```python
 class XPipeline_TV:
@@ -1151,7 +1150,7 @@ def nilm_metric(y_true, y_pred):
 ```
 
 ### Model Definition and Fitting
-We fit 4 different regressors, one for each appliance, using the custum nilm_metriv defined above.
+We fit 4 different regressors, one for each appliance, using the custom nilm_metric defined above.
 
 ```python
 # Fitting an XGBoost regressor
@@ -1265,7 +1264,7 @@ plt.show()
 This project was interesting on multiple aspects. It was the first time we had to deal with time series, which was a real challenge because it was a whole new paradigm, the data is now linked by their order and not only by the values of the variables. We also used RNNs for the first time. They are complex to understand and require meticulous tuning in order to give satisfactory results. Data formatting and preparation is also a big part of the work on RNNs.
 
 We also understood the interest of mixing models when there are multiple variables to predict, so that one can optimize the prediction for every variable.
-The sparsity of the data was also interesting, and we would haveliked to dedicate more time to its study.
+The sparsity of the data was also interesting, and we would have liked to dedicate more time to its study.
 
 
 PS: submissions on the platform were made under two user names guillaume.le-fur & LeonardoNatale and Abdou.Lazraq.
