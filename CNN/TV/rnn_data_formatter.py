@@ -4,7 +4,7 @@ import pandas as pd
 
 class RNNDataFormatter(BaseEstimator, TransformerMixin):
     
-    def __init__(self, batch_size=120):
+    def __init__(self, batch_size=256):
         self.X = None
         self.batch_size = batch_size
     
