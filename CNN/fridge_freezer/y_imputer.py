@@ -23,5 +23,21 @@ class YImputer(BaseEstimator, TransformerMixin):
         for day in days_to_drop:
             x.drop(x.loc[day].index, inplace=True)
         x = x.interpolate(method='linear').fillna(method='bfill')
-#         x.dropna(inplace=True)
         return x
+
+# class YImputer(BaseEstimator, TransformerMixin):
+    
+#     def __init__(self):
+#         pass
+
+#     def fit(self, x, y=None):
+#         return self
+    
+#     def transform(self, x, y=None):
+#         x.index = pd.to_datetime(x.index)
+#         try:
+#             x.drop(['kettle', 'TV', 'washing_machine'], axis=1, inplace=True)
+#         except KeyError as e:
+#             pass
+#         x = x.fillna(method='ffill')
+#         return x
