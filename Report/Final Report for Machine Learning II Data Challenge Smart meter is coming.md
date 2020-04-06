@@ -91,7 +91,7 @@ print(f'Percentage of consecutives (> 1 hour) : {cons60} \
         %\nTotal percentage for consecutives : {cons1} %')
 ```
 
-Given this information, we chose to **discard** all the consecutive missing values that last more than one hour because imputation would not have produced satisfactory results. Let us look at the missing values in the target Y_train to confirm this decision.
+Given this information, sometimes we have chosen to **discard** all the consecutive missing values that last more than one hour because imputation would have not have produced satisfactory results. Let us look at the missing values in the target Y_train to confirm this decision.
 
 ```python
 Y_train.isna().sum()
@@ -1047,6 +1047,8 @@ def nilm_metric(y_true, y_pred):
 We fit 4 different regressors, one for each appliance, using the custom nilm_metric defined above.
 
 ```python
+import xgboost as xgb
+
 # Fitting an XGBoost regressor
 xgb_reg = xgb.XGBRegressor(max_depth=10, learning_rate=0.1, n_estimators=100, random_state=42)
 xgb_reg.fit(x_train, y_train,
@@ -1101,7 +1103,7 @@ We can see on the graph above that the appliance responsible for the **sharpest 
 ## Results
 
 
-In this part, the results of all the methods we tried is summarised. At the very beginning, we tried the **Linear Regression** as a baseline. Our score was similar to the benchmark on the website. Afterwards, we started working on **Recurrent Neural Networks**. Setting them up was very time consuming as we lacked some experience in the fiesd. The results were not really satisfactory as we did not manage to make them perform betten than the Linear Regression.
+In this part, the results of all the methods we tried is summarised. At the very beginning, we tried the **Linear Regression** as a baseline. Our score was similar to the benchmark on the website. Afterwards, we started working on **Recurrent Neural Networks**. Setting them up was very time consuming as we lacked some experience in the field. The results were not really satisfactory as we did not manage to make them perform betten than the Linear Regression.
 Then, we started working on **XGBoost** and **Convolutional Neural Networks** at the same time. Both were giving good results but some were performing better on some appliances than others. So we tried to **bag** them in order to maximize the accuracy. Once we had used the best tool for every appliance, we started **tuning** the models individually, which led to our best model.
 
 ```python
@@ -1145,9 +1147,6 @@ plt.show()
 
 This project was interesting and challenging on multiple aspects. It was the first time we had to deal with time series, which was a real challenge because it is a whole new paradigm: the data is now linked by their order and not only by the values of the variables.  
 We have also applied RNNs for the first time. They are complex to understand and require meticulous tuning in order to give satisfactory results. Data formatting and preparation is also a big part of the work on RNNs.
-
-We also understood the interest of mixing models when there are multiple variables to predict, so that one can optimize the prediction for every variable.
-The sparsity of the data was also interesting, and we would have liked to dedicate more time to its study.
 
 Moreover, we have understood the interest of mixing models when there are multiple variables to predict, so that one can optimize the prediction for every variable.
 The sparsity required much attention too, and we would have liked to dedicate more time to its study.
