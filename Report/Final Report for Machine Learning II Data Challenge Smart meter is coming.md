@@ -6,7 +6,7 @@ jupyter:
       extension: .md
       format_name: markdown
       format_version: '1.2'
-      jupytext_version: 1.3.3
+      jupytext_version: 1.4.0
   kernelspec:
     display_name: Python 3
     language: python
@@ -15,6 +15,12 @@ jupyter:
 
 *by Guillaume Le Fur, Abderrahmane Lazraq and Leonardo Natale*
 
+{guillaume.le-fur , abderrahmane.lazraq , leonardo.natale} @polytechnique.edu
+
+
+**Important notice:**
+
+Submissions on the platform were made under two user names "guillaume.le-fur & LeonardoNatale" and "Abdou.Lazraq" but the three students worked on this project together and only one report was submitted.
 
 
 # Introduction: objectives and methodology
@@ -97,7 +103,7 @@ Given this information, sometimes we have chosen to **discard** all the consecut
 Y_train.isna().sum()
 ```
 
-Disarding the missing values safely in X_train is also encouraged by the fact that, **when there is a missing consumption in X_train, there is also a missing value in Y_train**. If we choose imputation, we also need to impute Y_train, which is a very risky operation.
+Discarding the missing values safely in X_train is also encouraged by the fact that, **when there is a missing consumption in X_train, there is also a missing value in Y_train**. If we choose imputation, we also need to impute Y_train, which is a very risky operation.
 
 
 ## Global vs. per appliance consumption
@@ -168,7 +174,7 @@ def add_features(x):
 X_data_exploration = add_features(X_train)
 ```
 
-**1. Weekend influence**
+### Weekend influence
 
 ```python
 
@@ -178,7 +184,7 @@ X_data_exploration[["consumption", "is_weekend"]].groupby("is_weekend").mean()
 The overall consumption is **higher during the weekend**, as expected.
 
 
-**2. Difference between weekdays**
+### Difference between weekdays
 
 
 ![EDA](weekday.png)
@@ -187,7 +193,7 @@ The overall consumption is **higher during the weekend**, as expected.
 The consumption is also really **high on tuesday**. We could not find any justification for this.
 
 
-**3. Difference between months**
+### Difference between months
 
 
 ![EDA](month.png)
@@ -196,7 +202,7 @@ The consumption is also really **high on tuesday**. We could not find any justif
 The consumption is **higher during *cold months*** (October to February). This might be due to the **heating system** which works more in winter than in summer.
 
 
-**4. Hourly consumption**
+### Hourly consumption
 
 
 ![EDA](hour.png)
@@ -205,7 +211,7 @@ The consumption is **higher during *cold months*** (October to February). This m
 The hourly consumption is quite interesting. Indeed, we can see that most of the consumption takes place **after 4 p.m.**, which is after the end of *office hours*, when people are back home, and **before 11 p.m.**, when people go to sleep. There are also two smaller *peaks*, during **breakfast** and **lunch time**.
 
 
-**5. Holidays influence**
+### Holidays influence
 
 ```python
 X_data_exploration[["consumption", "is_holidays"]].groupby("is_holidays").mean()
@@ -259,7 +265,7 @@ Once again, the use of the **washing machine on the weekend** is confirmed here.
 From the plot above, we can extract the following information:
     
 - People use their **TV in the morning**, really early, **and in the evening**, but not much after 11 p.m., after the main movie has finished.
-- People use their **kettle around teatime**, which is quite logical, but also a bit in the morining, **for breakfast**.
+- People use their **kettle around teatime**, which is quite logical, but also a bit in the morning, **for breakfast**.
 - The consumption fo the **freezer does not vary much** during the day.
 - People tend to turn their **washing machine on when they go to bed**, once again to reduce the **cost of electricity**.
 
@@ -1065,6 +1071,7 @@ xgb_reg.fit(x_train, y_train,
 Let's look at the most important features identifird by XGB for kettle for example:
 
 Feature ranking:
+
 1. is_breakfast (0.144821)
 2. lag_10 (0.131271)
 3. consumption (0.120324)
@@ -1104,56 +1111,25 @@ We can see on the graph above that the appliance responsible for the **sharpest 
 ## Results
 
 
-In this part, the results of all the methods we tried is summarised. At the very beginning, we tried the **Linear Regression** as a baseline. Our score was similar to the benchmark on the website. Afterwards, we started working on **Recurrent Neural Networks**. Setting them up was very time consuming as we lacked some experience in the field. The results were not really satisfactory as we did not manage to make them perform betten than the Linear Regression.
+In this part, the results of all the methods we tried are summarised. At the very beginning, we tried the **Linear Regression** as a baseline. Our score was similar to the benchmark on the website. Afterwards, we started working on **Recurrent Neural Networks**. Setting them up was very time consuming as we lacked some experience in the field. The results were not really satisfactory as we did not manage to make them perform betten than the Linear Regression.
 Then, we started working on **XGBoost** and **Convolutional Neural Networks** at the same time. Both were giving good results but some were performing better on some appliances than others. So we tried to **bag** them in order to maximize the accuracy. Once we had used the best tool for every appliance, we started **tuning** the models individually, which led to our best model.
 
-```python
-import matplotlib.dates as mdates
 
-res = pd.read_csv(
-    'scores.csv',
-    index_col=False
-)
+![EDA](scores.png)
 
-res = res.set_index('Ranking').round(4)[['Method', 'Date', 'Public score']]
-res
-```
 
-```python
-res.columns = ['method', 'date', 'score']
-res.date = pd.to_datetime(res.date)
+![EDA](benchmark.png)
 
-benchmark_value = 47.6480
-
-plt.figure(figsize=(15, 8))
-plt.plot_date(
-    res.date,
-    res.score,
-    linestyle='--'
-)
-
-for index, row in res.iterrows():
-    x = row['date']
-    y = row['score']
-    label = row['method']
-    plt.annotate(label, (mdates.date2num(x), y))
-
-plt.annotate("Benchmark", (mdates.date2num(res.date[0]), benchmark_value - .5))
-plt.axhline(y=benchmark_value, c="red")
-plt.show()
-```
 
 ## Conclusion
 
 
-This project was interesting and challenging on multiple aspects. It was the first time we had to deal with time series, which was a real challenge because it is a whole new paradigm: the data is now linked by their order and not only by the values of the variables.  
+This project was interesting and challenging on multiple aspects. It was the first time we had to deal with time series, which was a real challenge because it is a whole new paradigm: the data is now linked by its order and not only by the values of the variables. 
+
 We have also applied RNNs for the first time. They are complex to understand and require meticulous tuning in order to give satisfactory results. Data formatting and preparation is also a big part of the work on RNNs.
 
 Moreover, we have understood the interest of mixing models when there are multiple variables to predict, so that one can optimize the prediction for every variable.
 The sparsity required much attention too, and we would have liked to dedicate more time to its study.
-
-
-PS: submissions on the platform were made under two user names `guillaume.le-fur & LeonardoNatale` and `Abdou.Lazraq`.
 
 
 # References
