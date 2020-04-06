@@ -1010,9 +1010,6 @@ For our third attempt, we tried fitting four different regressors - one for each
 We chose **XGBoost** which has been used to win many data challenges, outperforming several other well-known implementations of gradient tree boosting.
 
 
-We can see on the graph above that the appliance responsible for the **sharpest variations is the kettle**. Indeed, it is turned on for a very short time but consumes a lot of electricity, so these variations are extremely hard to learn and detect with a CNN. This is the main reason why we want to try **Extreme Gradient Boosting** in order to detect more subtle changes in the consumption. ???
-
-
 ## Preprocessing Pipelines
 For each appliance, we preprocess the data using the pipeline defined in section 3. The only difference between the pipelines of each appliance are the data augmenters:
 
@@ -1084,12 +1081,19 @@ Feature ranking:
 
 ![EDA](imp.png)
 
-<!-- #region -->
+
 From the features importance graph, we can clearly see that four features seem to be way more important than the others among which: is_breakfast as expected since it indicates when people use kettle the most, consumption and two lag variables.
 
 
+![EDA](xgb.jpeg)
+
+
+We can see on the graph above that the appliance responsible for the **sharpest variations is the kettle**. Indeed, it is turned on for a very short time but consumes a lot of electricity, so these variations are extremely hard to learn and detect with a CNN. This is the main reason why we want to try **Extreme Gradient Boosting** in order to detect more subtle changes in the consumption.
+
+
+
 **XGB Result:** We were able to achieve a better prediction for kettle using XGB. But CNN provided better results for the other appliances.
-<!-- #endregion -->
+
 
 # Results and benchmark - Conclusion
 

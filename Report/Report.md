@@ -6,7 +6,7 @@ jupyter:
       extension: .md
       format_name: markdown
       format_version: '1.2'
-      jupytext_version: 1.3.3
+      jupytext_version: 1.4.0
   kernelspec:
     display_name: Python 3
     language: python
@@ -1075,8 +1075,8 @@ X_test.set_index("time_step", inplace=True)
 
 ```python
 # Apply XPipeline_XGB and YPipeline_XGB define above 
-px = XPipeline_XGB()
-py = YPipeline_XGB()
+px = XPipeline()
+py = YPipeline()
 print('Start of first transform')
 X = px.fit(X_train)
 X = px.transform(X_train)
